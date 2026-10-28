@@ -1,0 +1,36 @@
+name: Windows build and test
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - name: Build and functional tests
+        shell: pwsh
+        run: ./scripts/build.ps1
+      - name: Dependency audit
+        run: dotnet list Clean.slnx package --vulnerable --include-transitive
+      - name: Package without publishing
+        shell: pwsh
+        run: ./scripts/publish.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Clean-win-x64
+          path: |
+            artifacts/Clean-*.zip
+            artifacts/*.sha256
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: artifacts/TestResults/*.trx
