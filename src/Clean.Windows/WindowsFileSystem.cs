@@ -101,7 +101,7 @@ public sealed class WindowsFileSystem : IFileSystem
                     var handle = NativeFiles.Open(parent, 0x80, strict ? 1u : 3u);
                     result._handles.Add(handle);
                     NativeFiles.CheckPath(handle, parent, true);
-                    ids.Append(NativeFiles.Info(handle).Identity).Append('/');
+                    ids.Append(NativeFiles.Identity(handle)).Append('/');
                 }
                 result.Fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(ids.ToString())));
                 return result;
