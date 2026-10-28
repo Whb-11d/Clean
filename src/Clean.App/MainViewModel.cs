@@ -37,7 +37,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     [ObservableProperty] private bool _busy;
     [ObservableProperty] private int _selectedPage;
-    [ObservableProperty] private string _status = "就绪 · 所有扫描均为只读";
+    [ObservableProperty] private string _status = "就绪";
+    [ObservableProperty] private bool _quickCleaning;
+    [ObservableProperty] private string _quickSummary = "准备就绪，点击即可清理";
     [ObservableProperty] private string _scanSummary = "尚未扫描。请先选择范围，查看结果后逐项勾选。";
     [ObservableProperty] private string _largeFolder = "";
     [ObservableProperty] private string _ageDaysText = "7";
@@ -51,13 +53,18 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private double _memoryPercent;
     [ObservableProperty] private string _memoryTimestamp = "尚未采样";
     [ObservableProperty] private string _binSummary = "等待查询";
-    [ObservableProperty] private IReadOnlyList<CandidateRow> _candidates = Array.Empty<CandidateRow>();
-    [ObservableProperty] private IReadOnlyList<ScanIssue> _scanIssues = Array.Empty<ScanIssue>();
-    [ObservableProperty] private IReadOnlyList<ScanCandidate> _planItems = Array.Empty<ScanCandidate>();
-    [ObservableProperty] private IReadOnlyList<ResultRow> _results = Array.Empty<ResultRow>();
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasCandidates)), NotifyPropertyChangedFor(nameof(NoCandidates))]
+    private IReadOnlyList<CandidateRow> _candidates = Array.Empty<CandidateRow>();
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasScanIssues))]
+    private IReadOnlyList<ScanIssue> _scanIssues = Array.Empty<ScanIssue>();
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasPlanItems)), NotifyPropertyChangedFor(nameof(NoCleanupDetails))]
+    private IReadOnlyList<ScanCandidate> _planItems = Array.Empty<ScanCandidate>();
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasResults)), NotifyPropertyChangedFor(nameof(NoCleanupDetails))]
+    private IReadOnlyList<ResultRow> _results = Array.Empty<ResultRow>();
     [ObservableProperty] private IReadOnlyList<DiskRow> _diskRows = Array.Empty<DiskRow>();
     [ObservableProperty] private IReadOnlyList<ProcessRow> _processRows = Array.Empty<ProcessRow>();
-    [ObservableProperty] private IReadOnlyList<HistoryEntry> _historyRows = Array.Empty<HistoryEntry>();
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasHistory)), NotifyPropertyChangedFor(nameof(NoHistory))]
+    private IReadOnlyList<HistoryEntry> _historyRows = Array.Empty<HistoryEntry>();
 
     public MainViewModel(ScanService scanner, CleanupService cleaner, IDiskInfoProvider disks, IMemoryInfoProvider memory,
         IRecycleBinService bin, ISettingsStore settings, ICleanupHistoryStore history, IDiagnosticLog log, IUserDialogs dialogs, AppLocations locations)
@@ -73,6 +80,16 @@ public sealed partial class MainViewModel : ObservableObject
         HistoryRows = history.Load();
     }
     public bool Idle => !Busy;
+    public bool HasCandidates => Candidates.Count > 0;
+    public bool NoCandidates => !HasCandidates;
+    public bool HasScanIssues => ScanIssues.Count > 0;
+    public bool HasPlanItems => PlanItems.Count > 0;
+    public bool HasResults => Results.Count > 0;
+    public bool NoCleanupDetails => !HasPlanItems && !HasResults;
+    public bool HasHistory => HistoryRows.Count > 0;
+    public bool NoHistory => !HasHistory;
+    public string QuickScope => $"永久删除 {QuickAgeDays} 天前修改的用户临时文件，不进入回收站。";
+    private int QuickAgeDays => int.TryParse(AgeDaysText, out var days) ? Math.Max(7, days) : 7;
     public string TemporaryDirectory => _locations.TemporaryDirectory;
     public string StateDirectory => _locations.StateDirectory;
     public string SelectionSummary => $"已选 {Candidates.Count(x => x.Selected):N0} / {Candidates.Count:N0} 项 · 逻辑大小 {FormatSize.Bytes(Candidates.Where(x => x.Selected).Sum(x => x.Bytes))}";
@@ -87,10 +104,11 @@ public sealed partial class MainViewModel : ObservableObject
         ClearHistoryCommand.NotifyCanExecuteChanged(); EmptyBinCommand.NotifyCanExecuteChanged();
         ClearSelectionCommand.NotifyCanExecuteChanged(); AddExclusionCommand.NotifyCanExecuteChanged();
         RefreshOverviewCommand.NotifyCanExecuteChanged();
+        QuickCleanCommand.NotifyCanExecuteChanged();
     }
     partial void OnPermanentChanged(bool value) => InvalidatePlan();
     partial void OnExclusionsTextChanged(string value) => InvalidatePlan();
-    partial void OnAgeDaysTextChanged(string value) => InvalidatePlan();
+    partial void OnAgeDaysTextChanged(string value) { InvalidatePlan(); OnPropertyChanged(nameof(QuickScope)); }
     partial void OnMinimumMiBTextChanged(string value) => InvalidatePlan();
     partial void OnLargeFolderChanged(string value) => InvalidatePlan();
     private void InvalidatePlan()
@@ -114,9 +132,65 @@ public sealed partial class MainViewModel : ObservableObject
         if (Busy) return;
         Busy = true; _operation = new();
         try { await action(); }
-        catch (Exception e) { Status = Errors.Describe(e) + (e is ArgumentException ? " " + e.Message : ""); _log.Write("operation-failed", e.GetType().Name); }
-        finally { _operation.Dispose(); _operation = null; Busy = false; }
+        catch (Exception e)
+        {
+            Status = Errors.Describe(e) + (e is ArgumentException ? " " + e.Message : "");
+            if (QuickCleaning) QuickSummary = "清理未完成：" + Status;
+            _log.Write("operation-failed", e.GetType().Name);
+        }
+        finally { _operation.Dispose(); _operation = null; QuickCleaning = false; Busy = false; }
     }
+    [RelayCommand(CanExecute = nameof(CanWork))]
+    private Task QuickClean() => Run(async () =>
+    {
+        QuickCleaning = true;
+        SelectedPage = 0;
+        var settings = ReadSettings();
+        InvalidatePlan();
+        Candidates = Array.Empty<CandidateRow>(); Results = Array.Empty<ResultRow>(); ScanIssues = Array.Empty<ScanIssue>();
+        ReportSummary = "尚无执行结果。";
+        QuickSummary = Status = "正在查找过期临时文件…";
+        var active = true;
+        var progress = new Progress<WorkProgress>(p =>
+        {
+            if (active) QuickSummary = Status = p.Phase == "清理"
+                ? $"正在清理 · 已处理 {p.Processed:N0} / {p.Candidates:N0} 项"
+                : $"正在扫描 · 已检查 {p.Processed:N0} 项 · 找到 {p.Candidates:N0} 个过期文件";
+        });
+        try
+        {
+            var scan = await _scanner.ScanAsync(ScanRule.Temporary(_locations.TemporaryDirectory, Math.Max(7, settings.MinimumAgeDays)),
+                settings.ExcludedDirectories, progress, _operation!.Token);
+            ScanIssues = scan.Issues;
+            var note = (scan.ErrorCount > 0 ? $" · {scan.ErrorCount:N0} 处无法扫描" : "") +
+                (scan.Truncated ? " · 本次仅处理扫描上限内文件，可再次清理" : "");
+            if (scan.Cancelled || _operation.IsCancellationRequested)
+            {
+                active = false; QuickSummary = Status = "已停止扫描，没有删除任何文件。"; return;
+            }
+            if (scan.Candidates.Length == 0)
+            {
+                active = false;
+                QuickSummary = Status = (scan.ErrorCount > 0 ? "扫描未完整完成，未找到可清理文件" : "暂时没有需要清理的过期临时文件") + note;
+                return;
+            }
+            // The explicit one-click button authorizes only this fresh temporary-rule snapshot.
+            // Manual selections and the manual deletion-mode checkbox never affect this flow.
+            var plan = new CleanupPlan(scan.Candidates, settings.ExcludedDirectories, CleanupMode.Permanent);
+            var report = await _cleaner.ExecuteAsync(plan, new(plan.Id, plan.Mode), progress, _operation.Token);
+            active = false;
+            ApplyReport(report);
+            QuickSummary = $"{(_operation.IsCancellationRequested ? "已停止" : "清理结束")} · 已删除 {report.Deleted:N0} 个临时文件 · 逻辑大小 {FormatSize.Bytes(report.ProcessedBytes)}" +
+                $" · 跳过 {report.Skipped:N0} · 失败 {report.Failed:N0} · 未执行 {report.NotExecuted:N0}" + note;
+            if (report.PersistenceError is not null) QuickSummary += " · " + report.PersistenceError;
+            Status = QuickSummary;
+            _log.Write("quick-clean-completed");
+        }
+        finally { active = false; HistoryRows = _history.Load(); }
+    });
+    [RelayCommand] private void ShowReport() => SelectedPage = 2;
+    [RelayCommand] private void ShowManualScan() => SelectedPage = 1;
+    [RelayCommand] private void ShowLargeFiles() => SelectedPage = 3;
     [RelayCommand(CanExecute = nameof(CanWork))]
     private Task ScanTemporary() => Scan(false);
     [RelayCommand(CanExecute = nameof(CanWork))]
@@ -181,22 +255,25 @@ public sealed partial class MainViewModel : ObservableObject
             try
             {
                 var report = await _cleaner.ExecuteAsync(plan, new(plan.Id, plan.Mode), progress, _operation!.Token);
-                Results = report.Items.Select(x => new ResultRow(x.Candidate.Path, x.Status switch
-                { ItemStatus.Succeeded => "成功", ItemStatus.Skipped => "跳过", ItemStatus.Failed => "失败", _ => "未执行" },
-                    x.Mode == CleanupMode.Recycle ? "回收站" : "永久删除", FormatSize.Bytes(x.Candidate.Bytes), x.Message)).ToArray();
-                ReportSummary = $"移入回收站 {report.Recycled} · 永久删除 {report.Deleted} · 跳过 {report.Skipped} · 失败 {report.Failed} · 未执行 {report.NotExecuted}" +
-                    $"\n已处理逻辑大小：{FormatSize.Bytes(report.ProcessedBytes)}";
-                var deltas = report.DisksAfter.Where(x => x.Error is null).Select(after =>
-                {
-                    var before = report.DisksBefore.FirstOrDefault(x => x.Name == after.Name && x.Error is null);
-                    return before is null ? $"{after.Name} 无可比数据" : $"{after.Name} {FormatSize.Bytes(after.AvailableBytes - before.AvailableBytes)}";
-                });
-                SpaceSummary = "磁盘可用空间观测变化（可受其他进程影响）：" + string.Join("；", deltas);
+                ApplyReport(report);
                 Status = report.PersistenceError ?? "执行结束。详细结果如下；已完成操作不会因停止而回滚。";
                 _log.Write("cleanup-completed");
             }
-            finally { _plan = null; ExecutePlanCommand.NotifyCanExecuteChanged(); HistoryRows = _history.Load(); }
+            finally { _plan = null; PlanItems = Array.Empty<ScanCandidate>(); ExecutePlanCommand.NotifyCanExecuteChanged(); HistoryRows = _history.Load(); }
         });
+    }
+    private void ApplyReport(CleanupReport report)
+    {
+        Results = report.Items.Select(x => new ResultRow(x.Candidate.Path, x.Status switch
+        { ItemStatus.Succeeded => "成功", ItemStatus.Skipped => "跳过", ItemStatus.Failed => "失败", _ => "未执行" },
+            x.Mode == CleanupMode.Recycle ? "回收站" : "永久删除", FormatSize.Bytes(x.Candidate.Bytes), x.Message)).ToArray();
+        ReportSummary = $"移入回收站 {report.Recycled} · 永久删除 {report.Deleted} · 跳过 {report.Skipped} · 失败 {report.Failed} · 未执行 {report.NotExecuted}" +
+            $"\n已处理逻辑大小：{FormatSize.Bytes(report.ProcessedBytes)}";
+        SpaceSummary = "磁盘可用空间变化（可能受其他程序影响）：" + string.Join("；", report.DisksAfter.Where(x => x.Error is null).Select(after =>
+        {
+            var before = report.DisksBefore.FirstOrDefault(x => x.Name == after.Name && x.Error is null);
+            return before is null ? $"{after.Name} 无可比数据" : $"{after.Name} {FormatSize.Bytes(after.AvailableBytes - before.AvailableBytes)}";
+        }));
     }
     [RelayCommand(CanExecute = nameof(CanWork))]
     private Task RefreshOverview() => Run(async () =>
