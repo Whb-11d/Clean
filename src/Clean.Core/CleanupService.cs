@@ -16,12 +16,10 @@ public sealed class CleanupService(IFileSystem fileSystem, PathPolicy policy, ID
         var before = disks.GetDisks();
         var results = ImmutableArray.CreateBuilder<CleanupItemResult>();
         string? persistenceError = null;
+        int recycled = 0, deleted = 0, failed = 0, skipped = 0, completed = 0;
+        long processedBytes = 0;
         HistoryEntry Summary(string state) => new(plan.Id, started, state, plan.Items.Length,
-            results.Count(x => x.Status == ItemStatus.Succeeded && x.Mode == CleanupMode.Recycle),
-            results.Count(x => x.Status == ItemStatus.Succeeded && x.Mode == CleanupMode.Permanent),
-            results.Count(x => x.Status == ItemStatus.Failed), results.Count(x => x.Status == ItemStatus.Skipped),
-            plan.Items.Length - results.Count(x => x.Status != ItemStatus.NotExecuted),
-            results.Where(x => x.Status == ItemStatus.Succeeded).Sum(x => x.Candidate.Bytes));
+            recycled, deleted, failed, skipped, plan.Items.Length - completed, processedBytes);
         // A durable intent is a prerequisite for any deletion.
         history.Save(Summary("进行中"));
         foreach (var candidate in plan.Items)
@@ -53,7 +51,17 @@ public sealed class CleanupService(IFileSystem fileSystem, PathPolicy policy, ID
                 }
             }
             results.Add(new(candidate, plan.Mode, outcome.Status, outcome.Error, outcome.Message));
-            progress?.Report(new("清理", results.Count, plan.Items.Length, results.Count(x => x.Status == ItemStatus.Skipped)));
+            if (outcome.Status != ItemStatus.NotExecuted) completed++;
+            switch (outcome.Status)
+            {
+                case ItemStatus.Succeeded:
+                    if (plan.Mode == CleanupMode.Recycle) recycled++; else deleted++;
+                    processedBytes += candidate.Bytes;
+                    break;
+                case ItemStatus.Skipped: skipped++; break;
+                case ItemStatus.Failed: failed++; break;
+            }
+            progress?.Report(new("清理", results.Count, plan.Items.Length, skipped));
             if (persistenceError is null)
             {
                 try { history.Save(Summary("进行中")); }

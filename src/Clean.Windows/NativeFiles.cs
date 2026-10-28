@@ -53,10 +53,17 @@ internal static class NativeFiles
         if ((info.Attributes & (uint)FileAttributes.ReparsePoint) != 0 ||
             ((info.Attributes & (uint)FileAttributes.Directory) != 0) != directory)
             throw new PolicyException("文件类型变化或包含重解析点，已跳过。");
-        var buffer = new StringBuilder(32768);
+        var buffer = new StringBuilder(512);
         var count = GetFinalPathNameByHandleW(handle, buffer, (uint)buffer.Capacity, 0);
         if (count == 0) throw Error(Marshal.GetLastWin32Error());
-        if (count >= buffer.Capacity) throw new PolicyException("路径长度超出支持范围。");
+        if (count >= buffer.Capacity)
+        {
+            if (count > 32768) throw new PolicyException("路径长度超出支持范围。");
+            buffer = new StringBuilder((int)count + 1);
+            count = GetFinalPathNameByHandleW(handle, buffer, (uint)buffer.Capacity, 0);
+            if (count == 0) throw Error(Marshal.GetLastWin32Error());
+            if (count >= buffer.Capacity) throw new PolicyException("路径长度超出支持范围。");
+        }
         var final = buffer.ToString();
         if (final.StartsWith(@"\\?\", StringComparison.Ordinal)) final = final[4..];
         if (!PathPolicy.Normalize(final).Equals(PathPolicy.Normalize(expected), StringComparison.OrdinalIgnoreCase))
