@@ -14,6 +14,8 @@ $output = Join-Path $projectRoot "artifacts/publish/$Runtime"
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed' }
 Copy-Item -LiteralPath LICENSE, README.md, THIRD-PARTY-NOTICES.md, CHANGELOG.md -Destination $output
 Copy-Item -LiteralPath docs/user-guide.md -Destination $output
+Copy-Item -LiteralPath docs/test-report.md -Destination $output
+Copy-Item -LiteralPath licenses -Destination $output -Recurse -Force
 $revision = (& git rev-parse HEAD).Trim()
 Set-Content -LiteralPath (Join-Path $output 'SOURCE-COMMIT.txt') -Value $revision -Encoding utf8
 $archive = Join-Path $projectRoot "artifacts/Clean-0.1.0-$Runtime.zip"

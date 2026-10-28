@@ -7,5 +7,6 @@
     <Deterministic>true</Deterministic>
     <Version>0.1.0</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
 </Project>
