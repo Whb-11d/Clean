@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Clean.Core/Clean.Core.csproj" />
+    <Project Path="src/Clean.Windows/Clean.Windows.csproj" />
+    <Project Path="src/Clean.App/Clean.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Clean.Core.Tests/Clean.Core.Tests.csproj" />
+    <Project Path="tests/Clean.Windows.Tests/Clean.Windows.Tests.csproj" />
+    <Project Path="tests/Clean.App.Tests/Clean.App.Tests.csproj" />
+  </Folder>
+</Solution>

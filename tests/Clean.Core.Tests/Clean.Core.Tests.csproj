@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../../src/Clean.Core/Clean.Core.csproj" /><Compile Include="../TestDoubles.cs" Link="TestDoubles.cs" /></ItemGroup>
+</Project>
