@@ -2,6 +2,8 @@
 
 免费、开源、本地运行的 Windows 磁盘清理工具。先只读扫描、逐项审查，再明确确认执行。中文界面，C# / .NET 10 / WPF / MVVM，MIT 许可证。
 
+![Clean 概览](docs/images/overview.jpg)
+
 **当前为 v0.1.0 预发布开发版本。** 本地功能与自动化验证详见 [测试报告](docs/test-report.md)；尚未完成干净 Windows 虚拟机等正式发布验收，未上传 GitHub。
 
 已实现：
