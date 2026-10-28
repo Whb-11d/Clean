@@ -7,6 +7,8 @@ namespace Clean.Windows;
 
 public sealed class WindowsFileSystem : IFileSystem
 {
+    [ThreadStatic] private static EnumerationContext? _enumeration;
+    private sealed record EnumerationContext(WindowsFileSystem Owner, string Directory, string Fingerprint);
     public static PathPolicy CreatePolicy(string stateDirectory) => new(new[]
     {
         Environment.GetFolderPath(Environment.SpecialFolder.Windows),
@@ -29,14 +31,28 @@ public sealed class WindowsFileSystem : IFileSystem
     {
         // Hold ancestors while enumerating: a junction cannot replace a checked directory.
         using var guard = AncestorGuards.Acquire(directory, true, false);
-        foreach (var info in new DirectoryInfo(directory).EnumerateFileSystemInfos("*", new EnumerationOptions
-        { RecurseSubdirectories = false, IgnoreInaccessible = false, AttributesToSkip = 0, ReturnSpecialDirectories = false }))
-            yield return new(info.FullName, (info.Attributes & FileAttributes.Directory) != 0,
-                (info.Attributes & FileAttributes.ReparsePoint) != 0);
+        var previous = _enumeration;
+        _enumeration = new(this, PathPolicy.Normalize(directory), guard.Fingerprint);
+        try
+        {
+            foreach (var info in new DirectoryInfo(directory).EnumerateFileSystemInfos("*", new EnumerationOptions
+            { RecurseSubdirectories = false, IgnoreInaccessible = false, AttributesToSkip = 0, ReturnSpecialDirectories = false }))
+                yield return new(info.FullName, (info.Attributes & FileAttributes.Directory) != 0,
+                    (info.Attributes & FileAttributes.ReparsePoint) != 0);
+        }
+        finally { _enumeration = previous; }
     }
     public FileSnapshot ReadSnapshot(string path)
     {
         path = PathPolicy.Normalize(path);
+        // Reuse only the directory handles that the synchronous streaming enumerator still holds.
+        // Execution never uses this context, and always acquires fresh, stricter ancestor guards.
+        if (_enumeration is { } context && ReferenceEquals(context.Owner, this) &&
+            string.Equals(context.Directory, Path.GetDirectoryName(path), StringComparison.OrdinalIgnoreCase))
+        {
+            using var scanned = NativeFiles.Open(path);
+            return NativeFiles.Snapshot(scanned, path, context.Fingerprint);
+        }
         using var ancestors = AncestorGuards.Acquire(path, false, false);
         using var handle = NativeFiles.Open(path);
         return NativeFiles.Snapshot(handle, path, ancestors.Fingerprint);
