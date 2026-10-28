@@ -79,9 +79,9 @@ public sealed class WorkflowTests
     {
         var fs = new FakeFiles(); var plan = new CleanupPlan([fs.Add(@"C:\Test\a")], [], CleanupMode.Permanent);
         var service = new CleanupService(fs, new(), new FakeMetrics(), new FakeHistory());
-        Assert.Throws<InvalidOperationException>(() => service.ExecuteAsync(plan, new(plan.Id, CleanupMode.Recycle)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ExecuteAsync(plan, new(plan.Id, CleanupMode.Recycle)));
         await service.ExecuteAsync(plan, new(plan.Id, plan.Mode));
-        Assert.Throws<InvalidOperationException>(() => service.ExecuteAsync(plan, new(plan.Id, plan.Mode)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ExecuteAsync(plan, new(plan.Id, plan.Mode)));
         Assert.Single(fs.Executed);
     }
     [Fact] public async Task JournalFailureStopsFutureDeletion()

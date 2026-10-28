@@ -47,6 +47,12 @@ public sealed class ViewModelTests
         vm.BuildPlanCommand.Execute(null); vm.Permanent = true; Assert.False(vm.ExecutePlanCommand.CanExecute(null));
         vm.BuildPlanCommand.Execute(null); vm.ExclusionsText = @"C:\Private"; Assert.False(vm.ExecutePlanCommand.CanExecute(null));
     }
+    [Fact] public async Task ChangedAgeThresholdRequiresRescanBeforePlanning()
+    {
+        var (vm, _, _, _, _) = Create(); await vm.ScanTemporaryCommand.ExecuteAsync(null); vm.Candidates[0].Selected = true;
+        vm.AgeDaysText = "30"; vm.BuildPlanCommand.Execute(null);
+        Assert.False(vm.ExecutePlanCommand.CanExecute(null)); Assert.Contains("重新扫描", vm.Status);
+    }
     [Fact] public async Task InvalidThresholdIsReportedWithoutScanning()
     {
         var (vm, files, _, _, _) = Create(); vm.AgeDaysText = "-1"; await vm.ScanTemporaryCommand.ExecuteAsync(null);

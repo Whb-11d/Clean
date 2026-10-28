@@ -92,6 +92,7 @@ public sealed partial class MainViewModel : ObservableObject
     partial void OnExclusionsTextChanged(string value) => InvalidatePlan();
     partial void OnAgeDaysTextChanged(string value) => InvalidatePlan();
     partial void OnMinimumMiBTextChanged(string value) => InvalidatePlan();
+    partial void OnLargeFolderChanged(string value) => InvalidatePlan();
     private void InvalidatePlan()
     {
         _plan = null; PlanItems = Array.Empty<ScanCandidate>();
@@ -153,6 +154,14 @@ public sealed partial class MainViewModel : ObservableObject
         try
         {
             var settings = ReadSettings();
+            foreach (var row in Candidates.Where(x => x.Selected))
+            {
+                var rule = row.Candidate.Rule;
+                if ((rule.Kind == ScanKind.Temporary && rule.MinimumAgeDays != settings.MinimumAgeDays) ||
+                    (rule.Kind == ScanKind.LargeFiles && (rule.MinimumBytes != settings.LargeFileMiB * 1048576 ||
+                        !rule.Root.Equals(PathPolicy.Normalize(LargeFolder), StringComparison.OrdinalIgnoreCase))))
+                    throw new ArgumentException("扫描范围或阈值已改变，请重新扫描后再生成计划。");
+            }
             _plan = new(Candidates.Where(x => x.Selected).Select(x => x.Candidate), settings.ExcludedDirectories,
                 Permanent ? CleanupMode.Permanent : CleanupMode.Recycle);
             PlanItems = _plan.Items;
