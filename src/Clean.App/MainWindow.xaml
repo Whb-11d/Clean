@@ -1,5 +1,5 @@
 <Window x:Class="Clean.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Clean · 看得见的磁盘清理" Width="1180" Height="800" MinWidth="900" MinHeight="620" Background="#F3F6F9" FontFamily="Microsoft YaHei UI" FontSize="13" WindowStartupLocation="CenterScreen">
+        Title="Clean · 看得见的磁盘清理" Width="1180" Height="800" MinWidth="900" MinHeight="620" Background="#F3F6F9" Foreground="#223347" FontFamily="Microsoft YaHei UI" FontSize="13" WindowStartupLocation="CenterScreen">
   <Window.Resources>
     <DataTemplate x:Key="ScanResults">
       <Grid>
@@ -31,7 +31,7 @@
       <ListBox SelectedIndex="{Binding SelectedPage}" Background="Transparent" BorderThickness="0" Foreground="#A3B8CC" VerticalAlignment="Top" AutomationProperties.Name="页面导航">
         <ListBox.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="#A3B8CC"/></Style></ListBox.Resources>
         <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Padding" Value="15,13"/><Setter Property="Margin" Value="0,0,0,5"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><Border x:Name="ItemSurface" Background="Transparent" CornerRadius="7" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border><ControlTemplate.Triggers><Trigger Property="IsSelected" Value="True"><Setter TargetName="ItemSurface" Property="Background" Value="#294757"/><Setter Property="Foreground" Value="White"/></Trigger><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ItemSurface" Property="Background" Value="#233E50"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
-        <ListBoxItem Content="概览"/><ListBoxItem Content="临时文件"/><ListBoxItem Content="清理预览与结果"/><ListBoxItem Content="大文件分析"/><ListBoxItem Content="内存监控"/><ListBoxItem Content="设置与历史"/>
+        <ListBoxItem><TextBlock Text="概览" Foreground="#A3B8CC"/></ListBoxItem><ListBoxItem><TextBlock Text="临时文件" Foreground="#A3B8CC"/></ListBoxItem><ListBoxItem><TextBlock Text="清理预览与结果" Foreground="#A3B8CC"/></ListBoxItem><ListBoxItem><TextBlock Text="大文件分析" Foreground="#A3B8CC"/></ListBoxItem><ListBoxItem><TextBlock Text="内存监控" Foreground="#A3B8CC"/></ListBoxItem><ListBoxItem><TextBlock Text="设置与历史" Foreground="#A3B8CC"/></ListBoxItem>
       </ListBox>
     </DockPanel></Border>
     <Grid Grid.Column="1">
