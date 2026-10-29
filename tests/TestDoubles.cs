@@ -9,6 +9,7 @@ public sealed class FakeFiles : IFileSystem
     public Dictionary<string, FileSnapshot> Files { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, FileEntry[]> Directories { get; } = new(StringComparer.OrdinalIgnoreCase);
     public List<string> Executed { get; } = [];
+    public List<CleanupMode> ExecutedModes { get; } = [];
     public Action<string>? OnRead { get; set; }
     public Action? OnExecute { get; set; }
     public ActionOutcome Outcome { get; set; } = new(ItemStatus.Succeeded, ErrorKind.None, "done");
@@ -20,7 +21,7 @@ public sealed class FakeFiles : IFileSystem
         return Files.TryGetValue(path, out var file) ? file : throw new FileNotFoundException();
     }
     public ActionOutcome ExecuteVerified(FileSnapshot expected, CleanupMode mode, CancellationToken cancellationToken)
-    { Executed.Add(expected.Path); OnExecute?.Invoke(); return Outcome; }
+    { Executed.Add(expected.Path); ExecutedModes.Add(mode); OnExecute?.Invoke(); return Outcome; }
     public ScanCandidate Add(string path, int days = 10, long bytes = 100, ScanRule? rule = null)
     {
         var file = new FileSnapshot(path, bytes, DateTimeOffset.UtcNow.AddDays(-20), DateTimeOffset.UtcNow.AddDays(-days),
