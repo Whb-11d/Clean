@@ -121,7 +121,7 @@ public sealed class ViewModelTests
         var (vm, files, _, _, _) = Create(); files.OnExecute = () => vm.CancelCommand.Execute(null);
         await vm.QuickCleanCommand.ExecuteAsync(null);
         Assert.Single(files.Executed); Assert.Equal(2, vm.Results.Count);
-        Assert.Single(vm.Results.Where(x => x.Status == "未执行")); Assert.Contains("已停止", vm.QuickSummary);
+        Assert.Single(vm.Results, x => x.Status == "未执行"); Assert.Contains("已停止", vm.QuickSummary);
     }
     [Fact] public async Task OneClickDoesNotMisreportInaccessibleScopeAsClean()
     {

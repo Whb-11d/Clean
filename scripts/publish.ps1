@@ -9,7 +9,10 @@ if ($dotnet -ne 'dotnet') {
     $env:DOTNET_CLI_HOME = Join-Path $projectRoot '.tools/cli'
     $env:NUGET_PACKAGES = Join-Path $projectRoot '.tools/packages'
 }
-$output = Join-Path $projectRoot "artifacts/publish/$Runtime"
+[xml]$buildProperties = Get-Content -LiteralPath (Join-Path $projectRoot 'Directory.Build.props')
+$version = [string]$buildProperties.Project.PropertyGroup.Version
+if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid release version' }
+$output = Join-Path $projectRoot "artifacts/publish/$version/$Runtime"
 & $dotnet publish src/Clean.App/Clean.App.csproj -c Release -r $Runtime --self-contained true -o $output -p:PublishTrimmed=false -p:PublishSingleFile=false
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed' }
 Copy-Item -LiteralPath LICENSE, README.md, THIRD-PARTY-NOTICES.md, CHANGELOG.md -Destination $output
@@ -19,7 +22,7 @@ Copy-Item -LiteralPath docs -Destination $output -Recurse -Force
 Copy-Item -LiteralPath licenses -Destination $output -Recurse -Force
 $revision = (& git rev-parse HEAD).Trim()
 Set-Content -LiteralPath (Join-Path $output 'SOURCE-COMMIT.txt') -Value $revision -Encoding utf8
-$archive = Join-Path $projectRoot "artifacts/Clean-0.1.0-$Runtime.zip"
+$archive = Join-Path $projectRoot "artifacts/Clean-$version-$Runtime.zip"
 Compress-Archive -Path "$output/*" -DestinationPath $archive -Force
 $hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
 Set-Content -LiteralPath ($archive + '.sha256') -Value "$hash  $([IO.Path]::GetFileName($archive))" -Encoding ascii
