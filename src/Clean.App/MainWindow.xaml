@@ -1,5 +1,5 @@
 <Window x:Class="Clean.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Clean · 一键清理" Width="1120" Height="780" MinWidth="940" MinHeight="660" Background="#F5F7FA" Foreground="#223347" FontFamily="Microsoft YaHei UI" FontSize="13" WindowStartupLocation="CenterScreen" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
+        Title="Clean" Icon="Assets/Clean.ico" Width="1120" Height="780" MinWidth="940" MinHeight="660" Background="#F5F7FA" Foreground="#223347" FontFamily="Microsoft YaHei UI" FontSize="13" WindowStartupLocation="CenterScreen" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
   <Window.Resources>
     <DataTemplate x:Key="ScanResults">
       <Grid>

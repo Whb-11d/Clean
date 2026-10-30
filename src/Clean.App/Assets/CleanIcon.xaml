@@ -1,0 +1,18 @@
+<DrawingImage xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DrawingImage.Drawing>
+    <DrawingGroup>
+      <GeometryDrawing Brush="Transparent" Geometry="M0,0 H256 V256 H0 Z"/>
+      <GeometryDrawing>
+        <GeometryDrawing.Brush><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#26B69F" Offset="0"/><GradientStop Color="#08766E" Offset="1"/></LinearGradientBrush></GeometryDrawing.Brush>
+        <GeometryDrawing.Geometry><RectangleGeometry Rect="12,12,232,232" RadiusX="54" RadiusY="54"/></GeometryDrawing.Geometry>
+      </GeometryDrawing>
+      <!-- A bold broom silhouette stays readable at title-bar size. -->
+      <GeometryDrawing Brush="#FFFFFF" Geometry="M128,123 L176,65 Q182,58 189,65 Q195,71 189,78 L141,136 Z"/>
+      <GeometryDrawing Brush="#FFFFFF" Geometry="M111,113 Q115,109 120,113 L147,140 Q151,144 147,149 L108,190 Q104,194 99,191 L61,158 Q57,154 62,150 Z"/>
+      <GeometryDrawing Brush="#B6E7DC" Geometry="M106,128 L132,154 L126,161 L98,134 Z"/>
+      <GeometryDrawing Brush="#168574" Geometry="M78,171 L94,155 L98,159 L82,175 Z M90,182 L106,166 L110,170 L94,186 Z"/>
+      <GeometryDrawing Brush="#FFFFFF" Geometry="M76,51 Q80,72 99,77 Q80,82 76,103 Q71,82 52,77 Q71,72 76,51 Z"/>
+      <GeometryDrawing Brush="#C1EEE3" Geometry="M183,159 Q186,172 199,176 Q186,179 183,193 Q179,179 166,176 Q179,172 183,159 Z"/>
+    </DrawingGroup>
+  </DrawingImage.Drawing>
+</DrawingImage>
