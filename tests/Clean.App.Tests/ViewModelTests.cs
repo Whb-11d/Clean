@@ -6,6 +6,18 @@ namespace Clean.App.Tests;
 
 public sealed class ViewModelTests
 {
+    [Fact] public async Task LargeFileThresholdUsesDecimalMegabytesAtTheExactBoundary()
+    {
+        var (vm, files, _, settings, _) = Create();
+        vm.LargeFolder = @"C:\Boundary"; vm.MinimumMBText = "100";
+        files.Add(@"C:\Boundary\below.bin", bytes: 99999999);
+        files.Add(@"C:\Boundary\included.bin", bytes: 100000000);
+        await vm.ScanLargeCommand.ExecuteAsync(null);
+        Assert.Equal(@"C:\Boundary\included.bin", Assert.Single(vm.Candidates).Path);
+        Assert.Contains("100 MB", vm.Candidates[0].Reason);
+        vm.SaveSettingsCommand.Execute(null);
+        Assert.Equal(100000000, settings.Value.GetLargeFileMinimumBytes());
+    }
     private sealed class Dialogs : IUserDialogs
     {
         public bool Confirm { get; set; }

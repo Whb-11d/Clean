@@ -35,9 +35,9 @@ public static class FormatSize
 {
     public static string Bytes(double bytes)
     {
-        string[] units = ["B", "KiB", "MiB", "GiB", "TiB"];
+        string[] units = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
         int index = 0;
-        while (Math.Abs(bytes) >= 1024 && index < units.Length - 1) { bytes /= 1024; index++; }
+        while (Math.Abs(bytes) >= 1000 && index < units.Length - 1) { bytes /= 1000; index++; }
         return $"{bytes:N1} {units[index]}";
     }
 }

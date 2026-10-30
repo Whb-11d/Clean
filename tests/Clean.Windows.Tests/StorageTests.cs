@@ -5,6 +5,32 @@ namespace Clean.Windows.Tests;
 
 public sealed class StorageTests
 {
+    [Theory]
+    [InlineData(1)]
+    [InlineData(100)]
+    [InlineData(1048576)]
+    public void LegacyMegabytesKeepTheirByteThresholdAcrossMigrationAndBackup(long mib)
+    {
+        using var dir = new TestDirectory(); var file = Path.Combine(dir.Root, "settings.json");
+        File.WriteAllText(file, $"{{\"LargeFileMiB\":{mib},\"MinimumAgeDays\":9}}");
+        var store = new JsonSettingsStore(dir.Root); var loaded = store.Load();
+        Assert.Null(loaded.Warning); Assert.Equal(mib * 1048576, loaded.Settings.GetLargeFileMinimumBytes());
+        store.Save(loaded.Settings);
+        var json = File.ReadAllText(file);
+        Assert.Contains("LargeFileMB", json); Assert.DoesNotContain("LargeFileMiB", json);
+        File.WriteAllText(file, "{broken");
+        var backup = store.Load(); Assert.NotNull(backup.Warning);
+        Assert.Equal(mib * 1048576, backup.Settings.GetLargeFileMinimumBytes());
+    }
+    [Fact] public void NewUnitTakesPrecedenceAndInvalidLegacyValueFallsBack()
+    {
+        using var dir = new TestDirectory(); var file = Path.Combine(dir.Root, "settings.json");
+        File.WriteAllText(file, "{\"LargeFileMB\":100,\"LargeFileMiB\":200}");
+        var store = new JsonSettingsStore(dir.Root);
+        Assert.Equal(100000000, store.Load().Settings.GetLargeFileMinimumBytes());
+        File.WriteAllText(file, "{\"LargeFileMiB\":-1}");
+        Assert.NotNull(store.Load().Warning);
+    }
     [Fact] public void CorruptSettingsRecoverPreviousValidBackupAndRemainRecoverable()
     {
         using var dir = new TestDirectory(); var store = new JsonSettingsStore(dir.Root);
@@ -23,8 +49,8 @@ public sealed class StorageTests
     [Fact] public void SettingsRoundTripAndNoTemporaryFilesRemain()
     {
         using var dir = new TestDirectory(); var store = new JsonSettingsStore(dir.Root);
-        store.Save(new() { MinimumAgeDays = 20, LargeFileMiB = 200, ExcludedDirectories = [@"C:\Data"], SelectedPage = 4 });
-        var settings = store.Load().Settings; Assert.Equal(20, settings.MinimumAgeDays); Assert.Equal(200, settings.LargeFileMiB);
+        store.Save(new() { MinimumAgeDays = 20, LargeFileMB = 200, ExcludedDirectories = [@"C:\Data"], SelectedPage = 4 });
+        var settings = store.Load().Settings; Assert.Equal(20, settings.MinimumAgeDays); Assert.Equal(200, settings.LargeFileMB);
         Assert.Equal(@"C:\Data", Assert.Single(settings.ExcludedDirectories)); Assert.Equal(4, settings.SelectedPage);
         Assert.Empty(Directory.EnumerateFiles(dir.Root, "*.tmp"));
     }
@@ -43,3 +69,4 @@ public sealed class StorageTests
         Assert.Equal(8, store.Load().Settings.MinimumAgeDays);
     }
 }
+

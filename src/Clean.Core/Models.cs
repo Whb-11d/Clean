@@ -11,7 +11,7 @@ public sealed record ScanRule(string Id, int Version, ScanKind Kind, string Root
 {
     public string Reason => Kind == ScanKind.Temporary
         ? $"用户临时目录 · 最后修改超过 {MinimumAgeDays} 天（仍需人工确认）"
-        : $"大于 {MinimumBytes / 1048576d:N0} MiB · 大文件不等于垃圾";
+        : $"至少 {MinimumBytes / 1000000m:0.######} MB · 大文件不等于垃圾";
     public static ScanRule Temporary(string root, int days = 7) => new("user-temp", 1, ScanKind.Temporary, root, days, 0);
     public static ScanRule LargeFiles(string root, long bytes) => new("large-files", 1, ScanKind.LargeFiles, root, 0, bytes);
     public bool Matches(FileSnapshot file, DateTimeOffset now) => file.Length >= MinimumBytes &&
@@ -93,11 +93,13 @@ public sealed record HistoryEntry(Guid Id, DateTimeOffset Started, string State,
 public sealed record AppSettings
 {
     public int MinimumAgeDays { get; init; } = 7;
-    public long LargeFileMiB { get; init; } = 100;
+    public decimal LargeFileMB { get; init; } = 100;
     public string[] ExcludedDirectories { get; init; } = [];
     public int SelectedPage { get; init; }
-    public bool IsValid => MinimumAgeDays is >= 0 and <= 3650 && LargeFileMiB is >= 1 and <= 1048576 &&
+    public bool IsValid => MinimumAgeDays is >= 0 and <= 3650 && LargeFileMB is >= 1 and <= 1100000 &&
+        decimal.Truncate(LargeFileMB * 1000000m) == LargeFileMB * 1000000m &&
         SelectedPage is >= 0 and <= 5 && ExcludedDirectories is not null && ExcludedDirectories.Length <= 1000 &&
         ExcludedDirectories.All(PathPolicy.IsValid);
+    public long GetLargeFileMinimumBytes() => (long)(LargeFileMB * 1000000m);
 }
 public sealed record SettingsLoadResult(AppSettings Settings, string? Warning);

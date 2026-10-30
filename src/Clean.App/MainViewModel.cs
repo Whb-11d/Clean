@@ -47,7 +47,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _scanSummary = "尚未扫描。请先选择范围，查看结果后逐项勾选。";
     [ObservableProperty] private string _largeFolder = "";
     [ObservableProperty] private string _ageDaysText = "7";
-    [ObservableProperty] private string _minimumMiBText = "100";
+    [ObservableProperty] private string _minimumMBText = "100";
     [ObservableProperty] private string _exclusionsText = "";
     [ObservableProperty] private bool _permanent;
     [ObservableProperty] private string _planSummary = "尚未生成计划。请在扫描结果中勾选文件。";
@@ -77,7 +77,7 @@ public sealed partial class MainViewModel : ObservableObject
             (scanner, cleaner, disks, memory, bin, settings, history, log, dialogs, locations);
         var loaded = settings.Load();
         AgeDaysText = loaded.Settings.MinimumAgeDays.ToString();
-        MinimumMiBText = loaded.Settings.LargeFileMiB.ToString();
+        MinimumMBText = loaded.Settings.LargeFileMB.ToString();
         ExclusionsText = string.Join(Environment.NewLine, loaded.Settings.ExcludedDirectories);
         // Details belong to a live task and must never be restored as a landing page.
         SelectedNavigation = NavigationItems.FirstOrDefault(x => x.Page == loaded.Settings.SelectedPage) ?? NavigationItems[0];
@@ -127,7 +127,7 @@ public sealed partial class MainViewModel : ObservableObject
     partial void OnPermanentChanged(bool value) => InvalidatePlan();
     partial void OnExclusionsTextChanged(string value) => InvalidatePlan();
     partial void OnAgeDaysTextChanged(string value) { InvalidatePlan(); OnPropertyChanged(nameof(QuickScope)); }
-    partial void OnMinimumMiBTextChanged(string value) => InvalidatePlan();
+    partial void OnMinimumMBTextChanged(string value) => InvalidatePlan();
     partial void OnLargeFolderChanged(string value) => InvalidatePlan();
     private void InvalidatePlan()
     {
@@ -138,10 +138,11 @@ public sealed partial class MainViewModel : ObservableObject
     private AppSettings ReadSettings()
     {
         if (!int.TryParse(AgeDaysText, out var days) || days is < 0 or > 3650) throw new ArgumentException("临时文件时间阈值须为 0～3650 天。");
-        if (!long.TryParse(MinimumMiBText, out var mib) || mib is < 1 or > 1048576) throw new ArgumentException("最低大小须为 1～1048576 MiB。");
+        if (!decimal.TryParse(MinimumMBText, out var mb) || mb is < 1 or > 1100000 || decimal.Truncate(mb * 1000000m) != mb * 1000000m)
+            throw new ArgumentException("最低大小须为 1～1100000 MB，最多保留 6 位小数。");
         var exclusions = ExclusionsText.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(PathPolicy.Normalize).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        var settings = new AppSettings { MinimumAgeDays = days, LargeFileMiB = mib, ExcludedDirectories = exclusions, SelectedPage = SelectedPage == 2 ? _returnPage : SelectedPage };
+        var settings = new AppSettings { MinimumAgeDays = days, LargeFileMB = mb, ExcludedDirectories = exclusions, SelectedPage = SelectedPage == 2 ? _returnPage : SelectedPage };
         if (!settings.IsValid) throw new ArgumentException("设置无效或排除目录过多。");
         return settings;
     }
@@ -226,7 +227,7 @@ public sealed partial class MainViewModel : ObservableObject
     private Task Scan(bool large) => Run(async () =>
     {
         var settings = ReadSettings();
-        var rule = large ? ScanRule.LargeFiles(PathPolicy.Normalize(LargeFolder), settings.LargeFileMiB * 1048576) :
+        var rule = large ? ScanRule.LargeFiles(PathPolicy.Normalize(LargeFolder), settings.GetLargeFileMinimumBytes()) :
             ScanRule.Temporary(_locations.TemporaryDirectory, settings.MinimumAgeDays);
         HasQuickSession = false;
         InvalidatePlan(); Results = Array.Empty<ResultRow>(); ReportSummary = "尚无执行结果。";
@@ -261,7 +262,7 @@ public sealed partial class MainViewModel : ObservableObject
             {
                 var rule = row.Candidate.Rule;
                 if ((rule.Kind == ScanKind.Temporary && rule.MinimumAgeDays != settings.MinimumAgeDays) ||
-                    (rule.Kind == ScanKind.LargeFiles && (rule.MinimumBytes != settings.LargeFileMiB * 1048576 ||
+                    (rule.Kind == ScanKind.LargeFiles && (rule.MinimumBytes != settings.GetLargeFileMinimumBytes() ||
                         !rule.Root.Equals(PathPolicy.Normalize(LargeFolder), StringComparison.OrdinalIgnoreCase))))
                     throw new ArgumentException("扫描范围或阈值已改变，请重新扫描后再生成计划。");
             }
@@ -355,4 +356,5 @@ public sealed partial class MainViewModel : ObservableObject
         });
     }
 }
+
 

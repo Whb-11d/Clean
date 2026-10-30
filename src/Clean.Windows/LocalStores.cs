@@ -4,7 +4,7 @@ using Clean.Core;
 
 namespace Clean.Windows;
 
-internal sealed class AtomicJson<T>(string path, Func<T, bool> validate) where T : class
+internal sealed class AtomicJson<T>(string path, Func<T, bool> validate, Func<string, T?>? deserialize = null) where T : class
 {
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
     public T? Read(string? suffix = null)
@@ -13,7 +13,8 @@ internal sealed class AtomicJson<T>(string path, Func<T, bool> validate) where T
         {
             var file = path + suffix;
             if (!File.Exists(file) || new FileInfo(file).Length > 2 * 1024 * 1024) return null;
-            var value = JsonSerializer.Deserialize<T>(File.ReadAllText(file), Options);
+            var json = File.ReadAllText(file);
+            var value = deserialize is null ? JsonSerializer.Deserialize<T>(json, Options) : deserialize(json);
             return value is not null && validate(value) ? value : null;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or ArgumentException) { return null; }
@@ -42,8 +43,18 @@ internal sealed class AtomicJson<T>(string path, Func<T, bool> validate) where T
 
 public sealed class JsonSettingsStore(string directory) : ISettingsStore
 {
-    private readonly AtomicJson<AppSettings> _file = new(Path.Combine(directory, "settings.json"), x => x.IsValid);
+    private readonly AtomicJson<AppSettings> _file = new(Path.Combine(directory, "settings.json"), x => x.IsValid, ReadSettings);
     private readonly object _gate = new();
+    private static AppSettings? ReadSettings(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        var settings = document.RootElement.Deserialize<AppSettings>();
+        if (settings is null || document.RootElement.TryGetProperty("LargeFileMB", out _)) return settings;
+        if (!document.RootElement.TryGetProperty("LargeFileMiB", out var legacy)) return settings;
+        if (legacy.ValueKind != JsonValueKind.Number || !legacy.TryGetInt64(out var mib) || mib is < 1 or > 1048576) return null;
+        // Preserve the exact old byte threshold, including when recovering a backup.
+        return settings with { LargeFileMB = mib * 1.048576m };
+    }
     public SettingsLoadResult Load()
     {
         lock (_gate)
