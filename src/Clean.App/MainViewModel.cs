@@ -18,6 +18,7 @@ public sealed partial class CandidateRow(ScanCandidate candidate) : ObservableOb
 public sealed record DiskRow(string Name, string Total, string Available, double UsedPercent, string? Error);
 public sealed record ResultRow(string Path, string Status, string Mode, string Size, string Message);
 public sealed record ProcessRow(int Id, string Name, string WorkingSet);
+public sealed record NavigationItem(int Page, string Label, string Icon);
 
 public sealed partial class MainViewModel : ObservableObject
 {
@@ -34,9 +35,12 @@ public sealed partial class MainViewModel : ObservableObject
     private CancellationTokenSource? _operation;
     private bool _sampling;
     private CleanupPlan? _plan;
+    private int _returnPage;
 
     [ObservableProperty] private bool _busy;
     [ObservableProperty] private int _selectedPage;
+    [ObservableProperty] private NavigationItem? _selectedNavigation;
+    [ObservableProperty] private bool _hasQuickSession;
     [ObservableProperty] private string _status = "就绪";
     [ObservableProperty] private bool _quickCleaning;
     [ObservableProperty] private string _quickSummary = "准备就绪，点击即可清理";
@@ -75,11 +79,25 @@ public sealed partial class MainViewModel : ObservableObject
         AgeDaysText = loaded.Settings.MinimumAgeDays.ToString();
         MinimumMiBText = loaded.Settings.LargeFileMiB.ToString();
         ExclusionsText = string.Join(Environment.NewLine, loaded.Settings.ExcludedDirectories);
-        SelectedPage = loaded.Settings.SelectedPage;
+        // Details belong to a live task and must never be restored as a landing page.
+        SelectedNavigation = NavigationItems.FirstOrDefault(x => x.Page == loaded.Settings.SelectedPage) ?? NavigationItems[0];
         if (loaded.Warning is not null) Status = loaded.Warning;
         HistoryRows = history.Load();
     }
     public bool Idle => !Busy;
+    public IReadOnlyList<NavigationItem> NavigationItems { get; } =
+    [new(0, "一键清理", "\uE80F"), new(1, "临时文件", "\uE9CE"), new(3, "大文件分析", "\uE8B7"),
+     new(4, "内存监控", "\uE9D9"), new(5, "设置与历史", "\uE713")];
+    partial void OnSelectedNavigationChanged(NavigationItem? value)
+    {
+        if (value is not null) SelectedPage = value.Page;
+    }
+    partial void OnSelectedPageChanged(int value)
+    {
+        if (value == 2) { SelectedNavigation = null; return; }
+        _returnPage = value;
+        SelectedNavigation = NavigationItems.FirstOrDefault(x => x.Page == value) ?? NavigationItems[0];
+    }
     public bool HasCandidates => Candidates.Count > 0;
     public bool NoCandidates => !HasCandidates;
     public bool HasScanIssues => ScanIssues.Count > 0;
@@ -123,7 +141,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (!long.TryParse(MinimumMiBText, out var mib) || mib is < 1 or > 1048576) throw new ArgumentException("最低大小须为 1～1048576 MiB。");
         var exclusions = ExclusionsText.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(PathPolicy.Normalize).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        var settings = new AppSettings { MinimumAgeDays = days, LargeFileMiB = mib, ExcludedDirectories = exclusions, SelectedPage = SelectedPage };
+        var settings = new AppSettings { MinimumAgeDays = days, LargeFileMiB = mib, ExcludedDirectories = exclusions, SelectedPage = SelectedPage == 2 ? _returnPage : SelectedPage };
         if (!settings.IsValid) throw new ArgumentException("设置无效或排除目录过多。");
         return settings;
     }
@@ -145,6 +163,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         QuickCleaning = true;
         SelectedPage = 0;
+        HasQuickSession = true;
         var settings = ReadSettings();
         InvalidatePlan();
         Candidates = Array.Empty<CandidateRow>(); Results = Array.Empty<ResultRow>(); ScanIssues = Array.Empty<ScanIssue>();
@@ -188,7 +207,11 @@ public sealed partial class MainViewModel : ObservableObject
         }
         finally { active = false; HistoryRows = _history.Load(); }
     });
-    [RelayCommand] private void ShowReport() => SelectedPage = 2;
+    [RelayCommand] private void ShowReport()
+    {
+        if (HasQuickSession || HasResults || HasPlanItems) SelectedPage = 2;
+    }
+    [RelayCommand] private void CloseReport() => SelectedPage = _returnPage;
     [RelayCommand] private void ShowManualScan() => SelectedPage = 1;
     [RelayCommand] private void ShowLargeFiles() => SelectedPage = 3;
     [RelayCommand(CanExecute = nameof(CanWork))]
@@ -200,6 +223,7 @@ public sealed partial class MainViewModel : ObservableObject
         var settings = ReadSettings();
         var rule = large ? ScanRule.LargeFiles(PathPolicy.Normalize(LargeFolder), settings.LargeFileMiB * 1048576) :
             ScanRule.Temporary(_locations.TemporaryDirectory, settings.MinimumAgeDays);
+        HasQuickSession = false;
         InvalidatePlan(); Results = Array.Empty<ResultRow>(); ReportSummary = "尚无执行结果。";
         Candidates = Array.Empty<CandidateRow>(); ScanIssues = Array.Empty<ScanIssue>();
         Status = "正在只读扫描…";

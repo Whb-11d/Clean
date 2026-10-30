@@ -15,12 +15,65 @@ public sealed class ViewModelTests
         public bool ConfirmEmptyBin() => Confirm;
         public void OpenRecycleBin() { }
     }
-    private static (MainViewModel Vm, FakeFiles Files, Dialogs Dialogs, FakeSettings Settings, FakeBin Bin) Create()
+    private static (MainViewModel Vm, FakeFiles Files, Dialogs Dialogs, FakeSettings Settings, FakeBin Bin) Create(int savedPage = 0)
     {
         var files = new FakeFiles(); files.Add(@"C:\Test\a", bytes: 200 * 1048576); files.Add(@"C:\Test\b", bytes: 150 * 1048576);
         var metrics = new FakeMetrics(); var history = new FakeHistory(); var dialogs = new Dialogs(); var settings = new FakeSettings(); var bin = new FakeBin();
+        settings.Save(new AppSettings { SelectedPage = savedPage });
         return (new(new(files, new()), new(files, new(), metrics, history), metrics, metrics, bin, settings, history, new FakeLog(), dialogs,
             new(@"C:\Test", @"C:\State")), files, dialogs, settings, bin);
+    }
+    [Fact] public void NavigationContainsOnlyMainPagesAndRestoresLegacyDetailsToHome()
+    {
+        var (vm, _, _, _, _) = Create(2);
+        Assert.Equal(new[] { 0, 1, 3, 4, 5 }, vm.NavigationItems.Select(x => x.Page));
+        Assert.Equal(0, vm.SelectedPage); Assert.False(vm.HasQuickSession);
+        vm.ShowReportCommand.Execute(null); Assert.Equal(0, vm.SelectedPage);
+        foreach (var item in vm.NavigationItems)
+        {
+            vm.SelectedNavigation = item; Assert.Equal(item.Page, vm.SelectedPage);
+        }
+    }
+    [Fact] public async Task ManualDetailsReturnToTheirSourceAndNeverPersistAsNavigation()
+    {
+        var (vm, _, _, settings, _) = Create(3); vm.LargeFolder = @"C:\Test";
+        await vm.ScanLargeCommand.ExecuteAsync(null); vm.Candidates[0].Selected = true;
+        vm.BuildPlanCommand.Execute(null);
+        Assert.Equal(2, vm.SelectedPage); Assert.Null(vm.SelectedNavigation);
+        vm.SaveSettingsCommand.Execute(null); Assert.Equal(3, settings.Value.SelectedPage);
+        vm.CloseReportCommand.Execute(null); Assert.Equal(3, vm.SelectedPage);
+        Assert.Equal(3, vm.SelectedNavigation!.Page);
+    }
+    [Fact] public async Task QuickDetailsAppearOnlyForTheSessionIncludingEmptyResults()
+    {
+        var (vm, _, _, _, _) = Create(); vm.AgeDaysText = "30";
+        Assert.False(vm.HasQuickSession);
+        await vm.QuickCleanCommand.ExecuteAsync(null);
+        Assert.True(vm.HasQuickSession); Assert.Empty(vm.Results);
+        vm.ShowReportCommand.Execute(null); Assert.Equal(2, vm.SelectedPage);
+        // Clicking the same home item also exits the task view.
+        vm.SelectedNavigation = vm.NavigationItems[0]; Assert.Equal(0, vm.SelectedPage);
+        vm.ShowReportCommand.Execute(null); vm.CloseReportCommand.Execute(null);
+        Assert.Equal(0, vm.SelectedPage);
+        await vm.ScanTemporaryCommand.ExecuteAsync(null); Assert.False(vm.HasQuickSession);
+    }
+    [Fact] public async Task QuickSessionIsVisibleDuringScanningAndSurvivesCancellation()
+    {
+        var (vm, files, _, _, _) = Create();
+        using var entered = new ManualResetEventSlim(); using var release = new ManualResetEventSlim();
+        files.OnRead = _ => { entered.Set(); release.Wait(TimeSpan.FromSeconds(5)); };
+        var task = vm.QuickCleanCommand.ExecuteAsync(null);
+        try
+        {
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+            Assert.True(vm.HasQuickSession); Assert.True(vm.QuickCleaning);
+            vm.ShowReportCommand.Execute(null); Assert.Equal(2, vm.SelectedPage);
+            vm.CancelCommand.Execute(null);
+        }
+        finally { release.Set(); }
+        await task;
+        Assert.True(vm.HasQuickSession); Assert.False(vm.QuickCleaning); Assert.Empty(files.Executed);
+        Assert.Contains("没有删除", vm.QuickSummary);
     }
     [Fact] public async Task ResultsStartUnselectedAndSelectionInvalidatesPreview()
     {

@@ -1,5 +1,5 @@
 <Window x:Class="Clean.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Clean · 一键清理" Width="1100" Height="740" MinWidth="900" MinHeight="620" Background="#F3F6F9" Foreground="#223347" FontFamily="Microsoft YaHei UI" FontSize="13" WindowStartupLocation="CenterScreen">
+        Title="Clean · 一键清理" Width="1120" Height="780" MinWidth="940" MinHeight="660" Background="#F5F7FA" Foreground="#223347" FontFamily="Microsoft YaHei UI" FontSize="13" WindowStartupLocation="CenterScreen" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
   <Window.Resources>
     <DataTemplate x:Key="ScanResults">
       <Grid>
@@ -28,34 +28,34 @@
     </DataTemplate>
   </Window.Resources>
   <Grid>
-    <Grid.ColumnDefinitions><ColumnDefinition Width="195"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-    <Border Background="#172A3A"><DockPanel Margin="18,28,18,20">
-      <StackPanel DockPanel.Dock="Top" Margin="10,0,0,26"><TextBlock Text="◉  Clean" Foreground="White" FontSize="29" FontWeight="SemiBold"/><TextBlock Text="清理，从一个按钮开始" Foreground="#98AEBE" Margin="0,9,0,0" FontSize="12"/></StackPanel>
-      <ListBox SelectedIndex="{Binding SelectedPage}" Background="Transparent" BorderThickness="0" Foreground="#A3B8CC" VerticalAlignment="Top" AutomationProperties.Name="页面导航">
-        <ListBox.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="#A3B8CC"/></Style></ListBox.Resources>
-        <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Padding" Value="15,13"/><Setter Property="Margin" Value="0,0,0,5"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><Border x:Name="ItemSurface" Background="Transparent" CornerRadius="7" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border><ControlTemplate.Triggers><Trigger Property="IsSelected" Value="True"><Setter TargetName="ItemSurface" Property="Background" Value="#294757"/><Setter Property="Foreground" Value="White"/></Trigger><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ItemSurface" Property="Background" Value="#233E50"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
-        <ListBoxItem><TextBlock Text="一键清理" Foreground="#A3B8CC"/></ListBoxItem><ListBoxItem><TextBlock Text="临时文件 · 手动" Foreground="#A3B8CC"/></ListBoxItem><ListBoxItem><TextBlock Text="清理详情" Foreground="#A3B8CC"/></ListBoxItem><ListBoxItem><TextBlock Text="大文件分析" Foreground="#A3B8CC"/></ListBoxItem><ListBoxItem><TextBlock Text="内存监控" Foreground="#A3B8CC"/></ListBoxItem><ListBoxItem><TextBlock Text="设置与历史" Foreground="#A3B8CC"/></ListBoxItem>
+    <Grid.ColumnDefinitions><ColumnDefinition Width="205"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+    <Border Background="#172A3A"><DockPanel Margin="16,30,16,20">
+      <StackPanel DockPanel.Dock="Top" Margin="12,0,0,32"><StackPanel Orientation="Horizontal"><Border Background="#168574" CornerRadius="10" Width="36" Height="36" Margin="0,0,10,0"><TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" Foreground="White" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><TextBlock Text="Clean" Foreground="#F2F6FA" FontSize="27" FontWeight="SemiBold"/></StackPanel><TextBlock Text="给电脑，留一点轻盈" Foreground="#A3B8CC" Margin="0,14,0,0" FontSize="12"/></StackPanel>
+      <ListBox ItemsSource="{Binding NavigationItems}" SelectedItem="{Binding SelectedNavigation}" Background="Transparent" BorderThickness="0" Foreground="#A3B8CC" VerticalAlignment="Top" AutomationProperties.Name="页面导航" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+        <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Padding" Value="14,14"/><Setter Property="Margin" Value="0,0,0,6"/><Setter Property="Cursor" Value="Hand"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="AutomationProperties.Name" Value="{Binding Label}"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><Border x:Name="ItemSurface" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="10" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ItemSurface" Property="Background" Value="#20394B"/></Trigger><Trigger Property="IsSelected" Value="True"><Setter TargetName="ItemSurface" Property="Background" Value="#294757"/></Trigger><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="ItemSurface" Property="BorderBrush" Value="#A3B8CC"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style></ListBox.ItemContainerStyle>
+        <ListBox.ItemTemplate><DataTemplate><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding Icon}" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#A3B8CC" VerticalAlignment="Center" Margin="0,0,13,0"/><TextBlock Text="{Binding Label}" Foreground="#A3B8CC"/></StackPanel></DataTemplate></ListBox.ItemTemplate>
       </ListBox>
     </DockPanel></Border>
     <Grid Grid.Column="1">
       <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-      <TabControl SelectedIndex="{Binding SelectedPage}" Background="Transparent" BorderThickness="0" Margin="22,22,22,14">
+      <TabControl SelectedIndex="{Binding SelectedPage}" Background="Transparent" BorderThickness="0" Margin="28,28,28,16">
         <TabControl.Resources><Style TargetType="TabItem"><Setter Property="Visibility" Value="Collapsed"/></Style></TabControl.Resources>
         <TabItem><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
-          <TextBlock Text="一键清理，轻松一点" Style="{StaticResource Title}"/><TextBlock Text="自动查找并清理过期临时文件，完成后直接查看结果。" Style="{StaticResource Subtitle}"/>
-          <Border Background="#E5F3EF" BorderBrush="#C7E4DB" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,0,0,14">
+          <TextBlock Text="让空间，回到手边" Style="{StaticResource Title}"/><TextBlock Text="日常清理，一个按钮就够了。" Style="{StaticResource Subtitle}"/>
+          <Border BorderBrush="#CBE5DF" BorderThickness="1" CornerRadius="18" Padding="24" Margin="0,0,0,18">
+            <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#E0F3ED" Offset="0"/><GradientStop Color="#F0F8F6" Offset="1"/></LinearGradientBrush></Border.Background>
             <StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,16"><Border Background="#C8E9DF" CornerRadius="12" Width="44" Height="44"><TextBlock Text="&#xE9CE;" FontFamily="Segoe MDL2 Assets" FontSize="22" Foreground="#168574" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><StackPanel VerticalAlignment="Center" Margin="12,0,0,0"><TextBlock Text="日常清理" Foreground="#165E52" FontWeight="SemiBold"/><TextBlock Text="仅处理过期的用户临时文件" Foreground="#537B70" FontSize="12" Margin="0,3,0,0"/></StackPanel></StackPanel>
               <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <StackPanel Margin="0,0,18,0"><TextBlock Text="清理过期临时文件" FontSize="21" FontWeight="SemiBold" Foreground="#165E52"/>
+                <StackPanel Margin="0,0,18,0"><TextBlock Text="清理一下，轻装运行" FontSize="23" FontWeight="SemiBold" Foreground="#165E52"/>
                   <TextBlock Text="{Binding QuickScope}" Foreground="#426B62" Margin="0,7,0,0"/>
                   <TextBlock Text="保留排除目录，跳过占用文件。点击即执行，无需勾选。" Foreground="#426B62" Margin="0,4,0,0"/>
                 </StackPanel>
                 <Button Grid.Column="1" Content="一键清理" Command="{Binding QuickCleanCommand}" FontSize="18" FontWeight="SemiBold" Padding="28,15" Margin="0" VerticalAlignment="Center" AutomationProperties.Name="一键清理过期临时文件"/>
               </Grid>
-              <ProgressBar Height="4" Margin="0,15,0,0" IsIndeterminate="{Binding QuickCleaning}" Visibility="{Binding QuickCleaning, Converter={StaticResource VisibleWhenTrue}}"/>
-              <DockPanel Margin="0,16,0,0"><Button DockPanel.Dock="Right" Content="查看清理详情" Command="{Binding ShowReportCommand}" Visibility="{Binding HasResults, Converter={StaticResource VisibleWhenTrue}}" Background="#537A70" Padding="12,7" Margin="12,0,0,0"/><TextBlock Text="{Binding QuickSummary}" FontWeight="SemiBold" VerticalAlignment="Center"/></DockPanel>
             </StackPanel>
           </Border>
+          <Border Style="{StaticResource Card}" Visibility="{Binding HasQuickSession, Converter={StaticResource VisibleWhenTrue}}"><StackPanel><DockPanel><Button DockPanel.Dock="Right" Content="清理详情 →" Command="{Binding ShowReportCommand}" Style="{StaticResource SecondaryButton}" Margin="12,0,0,0"/><TextBlock Text="本次清理" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/></DockPanel><TextBlock Text="{Binding QuickSummary}" Foreground="#53716C" Margin="0,10,0,0" AutomationProperties.LiveSetting="Polite"/><ProgressBar Height="4" Foreground="{StaticResource Accent}" Margin="0,12,0,0" IsIndeterminate="{Binding QuickCleaning}" Visibility="{Binding QuickCleaning, Converter={StaticResource VisibleWhenTrue}}"/></StackPanel></Border>
           <Border Style="{StaticResource Card}"><StackPanel><DockPanel><Button DockPanel.Dock="Right" Content="刷新概览" Command="{Binding RefreshOverviewCommand}"/><TextBlock Text="本地磁盘" FontSize="18" FontWeight="SemiBold"/></DockPanel>
             <ItemsControl ItemsSource="{Binding DiskRows}" Margin="0,16,0,0"><ItemsControl.ItemTemplate><DataTemplate><Grid Margin="0,0,0,16"><Grid.ColumnDefinitions><ColumnDefinition Width="55"/><ColumnDefinition Width="*"/><ColumnDefinition Width="230"/></Grid.ColumnDefinitions><TextBlock Text="{Binding Name}" FontSize="17"/><ProgressBar Grid.Column="1" Value="{Binding UsedPercent}" Height="9" Foreground="{StaticResource Accent}" Background="#E6EEF1" BorderThickness="0" VerticalAlignment="Center"/><StackPanel Grid.Column="2" Margin="18,0,0,0"><TextBlock><Run Text="可用 "/><Run Text="{Binding Available}"/><Run Text=" / "/><Run Text="{Binding Total}"/></TextBlock><TextBlock Text="{Binding Error}" Foreground="#A23E32"/></StackPanel></Grid></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
           </StackPanel></Border>
@@ -69,13 +69,9 @@
           <ContentControl Grid.Row="1" Content="{Binding}" ContentTemplate="{StaticResource ScanResults}"/>
         </Grid></TabItem>
         <TabItem><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
-          <TextBlock Text="清理详情" Style="{StaticResource Title}"/><TextBlock Text="查看本次处理结果，或继续手动选择的清理任务。" Style="{StaticResource Subtitle}"/>
-          <Border Style="{StaticResource Card}" Visibility="{Binding NoCleanupDetails, Converter={StaticResource VisibleWhenTrue}}">
-            <StackPanel><TextBlock Text="还没有清理记录" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="日常清理直接点击“一键清理”；需要挑选文件时，再进入手动扫描。" Foreground="#657689" Margin="0,8,0,14"/>
-              <WrapPanel><Button Content="一键清理临时文件" Command="{Binding QuickCleanCommand}"/><Button Content="手动选择文件" Command="{Binding ShowManualScanCommand}" Background="#657689"/></WrapPanel>
-              <TextBlock Text="{Binding QuickScope}" Foreground="#657689" Margin="0,10,0,0"/>
-            </StackPanel>
-          </Border>
+          <Button Content="← 返回" Command="{Binding CloseReportCommand}" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" Margin="0,0,0,16"/>
+          <TextBlock Text="清理详情" Style="{StaticResource Title}"/><TextBlock Text="本次任务的进度与处理结果。" Style="{StaticResource Subtitle}"/>
+          <Border Style="{StaticResource Card}" Visibility="{Binding HasQuickSession, Converter={StaticResource VisibleWhenTrue}}"><StackPanel><TextBlock Text="{Binding QuickSummary}" FontSize="16" FontWeight="SemiBold"/><ProgressBar Height="4" Foreground="{StaticResource Accent}" Margin="0,12,0,0" IsIndeterminate="{Binding QuickCleaning}" Visibility="{Binding QuickCleaning, Converter={StaticResource VisibleWhenTrue}}"/></StackPanel></Border>
           <Border Style="{StaticResource Card}" Visibility="{Binding HasCandidates, Converter={StaticResource VisibleWhenTrue}}">
             <StackPanel><TextBlock Text="手动清理" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,10"/>
               <WrapPanel><CheckBox Content="永久删除（需单独确认）" IsChecked="{Binding Permanent}" IsEnabled="{Binding Idle}" VerticalAlignment="Center" Margin="0,0,16,0"/><Button Content="重新生成预览" Command="{Binding BuildPlanCommand}"/><Button Content="确认并执行…" Command="{Binding ExecutePlanCommand}"/></WrapPanel>
@@ -116,7 +112,7 @@
           <Expander Header="本地数据与隐私" Foreground="#657689"><StackPanel Margin="0,10,0,0"><TextBlock Text="{Binding StateDirectory}" FontFamily="Consolas"/><TextBlock Text="历史只保留摘要，诊断日志不记录文件路径。" Foreground="#657689" Margin="0,6,0,0"/></StackPanel></Expander>
         </StackPanel></ScrollViewer></TabItem>
       </TabControl>
-      <Border Grid.Row="1" Background="White" BorderBrush="#E2E9EF" BorderThickness="0,1,0,0" Padding="24,14"><DockPanel><Button DockPanel.Dock="Right" Content="停止后续操作" Command="{Binding CancelCommand}" IsEnabled="{Binding Busy}" Background="#657689" Margin="16,0,0,0"/><TextBlock Text="{Binding Status}" VerticalAlignment="Center" MaxHeight="75" AutomationProperties.LiveSetting="Polite"/></DockPanel></Border>
+      <Border Grid.Row="1" Background="#F5F7FA" BorderBrush="#E2E9EF" BorderThickness="0,1,0,0" Padding="28,12"><DockPanel><Button DockPanel.Dock="Right" Content="停止操作" Command="{Binding CancelCommand}" Visibility="{Binding Busy, Converter={StaticResource VisibleWhenTrue}}" Style="{StaticResource SecondaryButton}" Margin="16,0,0,0"/><Ellipse Width="6" Height="6" Fill="{StaticResource Accent}" Margin="0,0,9,0"/><TextBlock Text="{Binding Status}" Foreground="#718190" FontSize="12" VerticalAlignment="Center" MaxHeight="54" AutomationProperties.LiveSetting="Polite"/></DockPanel></Border>
     </Grid>
   </Grid>
 </Window>
