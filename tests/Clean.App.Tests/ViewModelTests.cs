@@ -75,6 +75,15 @@ public sealed class ViewModelTests
         Assert.True(vm.HasQuickSession); Assert.False(vm.QuickCleaning); Assert.Empty(files.Executed);
         Assert.Contains("没有删除", vm.QuickSummary);
     }
+    [Fact] public async Task NewQuickSessionCannotDisplayResultsFromAnEarlierTaskOnValidationFailure()
+    {
+        var (vm, _, _, _, _) = Create();
+        await vm.QuickCleanCommand.ExecuteAsync(null); Assert.True(vm.HasResults);
+        vm.AgeDaysText = "invalid";
+        await vm.QuickCleanCommand.ExecuteAsync(null);
+        Assert.Empty(vm.Results); Assert.True(vm.HasQuickSession);
+        Assert.Contains("清理未完成", vm.QuickSummary); Assert.False(vm.Busy);
+    }
     [Fact] public async Task ResultsStartUnselectedAndSelectionInvalidatesPreview()
     {
         var (vm, _, _, _, _) = Create(); await vm.ScanTemporaryCommand.ExecuteAsync(null);

@@ -86,7 +86,7 @@ public sealed partial class MainViewModel : ObservableObject
     }
     public bool Idle => !Busy;
     public IReadOnlyList<NavigationItem> NavigationItems { get; } =
-    [new(0, "一键清理", "\uE80F"), new(1, "临时文件", "\uE9CE"), new(3, "大文件分析", "\uE8B7"),
+    [new(0, "一键清理", "\uE80F"), new(1, "临时文件", "\uE74D"), new(3, "大文件分析", "\uE8B7"),
      new(4, "内存监控", "\uE9D9"), new(5, "设置与历史", "\uE713")];
     partial void OnSelectedNavigationChanged(NavigationItem? value)
     {
@@ -164,17 +164,22 @@ public sealed partial class MainViewModel : ObservableObject
         QuickCleaning = true;
         SelectedPage = 0;
         HasQuickSession = true;
-        var settings = ReadSettings();
         InvalidatePlan();
         Candidates = Array.Empty<CandidateRow>(); Results = Array.Empty<ResultRow>(); ScanIssues = Array.Empty<ScanIssue>();
         ReportSummary = "尚无执行结果。";
+        var settings = ReadSettings();
         QuickSummary = Status = "正在查找过期临时文件…";
         var active = true;
+        var progressGate = new object();
+        void StopProgress() { lock (progressGate) active = false; }
         var progress = new Progress<WorkProgress>(p =>
         {
-            if (active) QuickSummary = Status = p.Phase == "清理"
-                ? $"正在清理 · 已处理 {p.Processed:N0} / {p.Candidates:N0} 项"
-                : $"正在扫描 · 已检查 {p.Processed:N0} 项 · 找到 {p.Candidates:N0} 个过期文件";
+            lock (progressGate)
+            {
+                if (active) QuickSummary = Status = p.Phase == "清理"
+                    ? $"正在清理 · 已处理 {p.Processed:N0} / {p.Candidates:N0} 项"
+                    : $"正在扫描 · 已检查 {p.Processed:N0} 项 · 找到 {p.Candidates:N0} 个过期文件";
+            }
         });
         try
         {
@@ -185,11 +190,11 @@ public sealed partial class MainViewModel : ObservableObject
                 (scan.Truncated ? " · 本次仅处理扫描上限内文件，可再次清理" : "");
             if (scan.Cancelled || _operation.IsCancellationRequested)
             {
-                active = false; QuickSummary = Status = "已停止扫描，没有删除任何文件。"; return;
+                StopProgress(); QuickSummary = Status = "已停止扫描，没有删除任何文件。"; return;
             }
             if (scan.Candidates.Length == 0)
             {
-                active = false;
+                StopProgress();
                 QuickSummary = Status = (scan.ErrorCount > 0 ? "扫描未完整完成，未找到可清理文件" : "暂时没有需要清理的过期临时文件") + note;
                 return;
             }
@@ -197,7 +202,7 @@ public sealed partial class MainViewModel : ObservableObject
             // Manual selections and the manual deletion-mode checkbox never affect this flow.
             var plan = new CleanupPlan(scan.Candidates, settings.ExcludedDirectories, CleanupMode.Permanent);
             var report = await _cleaner.ExecuteAsync(plan, new(plan.Id, plan.Mode), progress, _operation.Token);
-            active = false;
+            StopProgress();
             ApplyReport(report);
             QuickSummary = $"{(_operation.IsCancellationRequested ? "已停止" : "清理结束")} · 已删除 {report.Deleted:N0} 个临时文件 · 逻辑大小 {FormatSize.Bytes(report.ProcessedBytes)}" +
                 $" · 跳过 {report.Skipped:N0} · 失败 {report.Failed:N0} · 未执行 {report.NotExecuted:N0}" + note;
@@ -205,7 +210,7 @@ public sealed partial class MainViewModel : ObservableObject
             Status = QuickSummary;
             _log.Write("quick-clean-completed");
         }
-        finally { active = false; HistoryRows = _history.Load(); }
+        finally { StopProgress(); HistoryRows = _history.Load(); }
     });
     [RelayCommand] private void ShowReport()
     {
@@ -350,3 +355,4 @@ public sealed partial class MainViewModel : ObservableObject
         });
     }
 }
+

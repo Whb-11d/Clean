@@ -6,7 +6,7 @@
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <TextBlock Text="{Binding ScanSummary}" Margin="0,10,0,10"/>
         <DockPanel Grid.Row="1" Margin="0,0,0,12">
-          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="取消勾选" Command="{Binding ClearSelectionCommand}" Background="#657689"/><Button Content="生成清理预览 →" Command="{Binding BuildPlanCommand}"/></StackPanel>
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="本次结果" Command="{Binding ShowReportCommand}" Visibility="{Binding HasResults, Converter={StaticResource VisibleWhenTrue}}" Style="{StaticResource SecondaryButton}"/><Button Content="取消勾选" Command="{Binding ClearSelectionCommand}" Style="{StaticResource SecondaryButton}"/><Button Content="生成清理预览 →" Command="{Binding BuildPlanCommand}"/></StackPanel>
           <TextBlock Text="{Binding SelectionSummary}" VerticalAlignment="Center"/>
         </DockPanel>
         <Border Grid.Row="2" Style="{StaticResource Card}" VerticalAlignment="Top" Visibility="{Binding NoCandidates, Converter={StaticResource VisibleWhenTrue}}">
@@ -38,14 +38,14 @@
     </DockPanel></Border>
     <Grid Grid.Column="1">
       <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-      <TabControl SelectedIndex="{Binding SelectedPage}" Background="Transparent" BorderThickness="0" Margin="28,28,28,16">
+      <TabControl Foreground="#223347" SelectedIndex="{Binding SelectedPage}" Background="Transparent" BorderThickness="0" Margin="28,28,28,16">
         <TabControl.Resources><Style TargetType="TabItem"><Setter Property="Visibility" Value="Collapsed"/></Style></TabControl.Resources>
         <TabItem><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
           <TextBlock Text="让空间，回到手边" Style="{StaticResource Title}"/><TextBlock Text="日常清理，一个按钮就够了。" Style="{StaticResource Subtitle}"/>
           <Border BorderBrush="#CBE5DF" BorderThickness="1" CornerRadius="18" Padding="24" Margin="0,0,0,18">
             <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#E0F3ED" Offset="0"/><GradientStop Color="#F0F8F6" Offset="1"/></LinearGradientBrush></Border.Background>
             <StackPanel>
-              <StackPanel Orientation="Horizontal" Margin="0,0,0,16"><Border Background="#C8E9DF" CornerRadius="12" Width="44" Height="44"><TextBlock Text="&#xE9CE;" FontFamily="Segoe MDL2 Assets" FontSize="22" Foreground="#168574" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><StackPanel VerticalAlignment="Center" Margin="12,0,0,0"><TextBlock Text="日常清理" Foreground="#165E52" FontWeight="SemiBold"/><TextBlock Text="仅处理过期的用户临时文件" Foreground="#537B70" FontSize="12" Margin="0,3,0,0"/></StackPanel></StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,16"><Border Background="#C8E9DF" CornerRadius="12" Width="44" Height="44"><TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="22" Foreground="#168574" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><StackPanel VerticalAlignment="Center" Margin="12,0,0,0"><TextBlock Text="日常清理" Foreground="#165E52" FontWeight="SemiBold"/><TextBlock Text="仅处理过期的用户临时文件" Foreground="#537B70" FontSize="12" Margin="0,3,0,0"/></StackPanel></StackPanel>
               <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <StackPanel Margin="0,0,18,0"><TextBlock Text="清理一下，轻装运行" FontSize="23" FontWeight="SemiBold" Foreground="#165E52"/>
                   <TextBlock Text="{Binding QuickScope}" Foreground="#426B62" Margin="0,7,0,0"/>
@@ -56,12 +56,12 @@
             </StackPanel>
           </Border>
           <Border Style="{StaticResource Card}" Visibility="{Binding HasQuickSession, Converter={StaticResource VisibleWhenTrue}}"><StackPanel><DockPanel><Button DockPanel.Dock="Right" Content="清理详情 →" Command="{Binding ShowReportCommand}" Style="{StaticResource SecondaryButton}" Margin="12,0,0,0"/><TextBlock Text="本次清理" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/></DockPanel><TextBlock Text="{Binding QuickSummary}" Foreground="#53716C" Margin="0,10,0,0" AutomationProperties.LiveSetting="Polite"/><ProgressBar Height="4" Foreground="{StaticResource Accent}" Margin="0,12,0,0" IsIndeterminate="{Binding QuickCleaning}" Visibility="{Binding QuickCleaning, Converter={StaticResource VisibleWhenTrue}}"/></StackPanel></Border>
-          <Border Style="{StaticResource Card}"><StackPanel><DockPanel><Button DockPanel.Dock="Right" Content="刷新概览" Command="{Binding RefreshOverviewCommand}"/><TextBlock Text="本地磁盘" FontSize="18" FontWeight="SemiBold"/></DockPanel>
+          <Border Style="{StaticResource Card}"><StackPanel><DockPanel><Button DockPanel.Dock="Right" Content="刷新概览" Command="{Binding RefreshOverviewCommand}" Style="{StaticResource SecondaryButton}"/><TextBlock Text="本地磁盘" FontSize="18" FontWeight="SemiBold"/></DockPanel>
             <ItemsControl ItemsSource="{Binding DiskRows}" Margin="0,16,0,0"><ItemsControl.ItemTemplate><DataTemplate><Grid Margin="0,0,0,16"><Grid.ColumnDefinitions><ColumnDefinition Width="55"/><ColumnDefinition Width="*"/><ColumnDefinition Width="230"/></Grid.ColumnDefinitions><TextBlock Text="{Binding Name}" FontSize="17"/><ProgressBar Grid.Column="1" Value="{Binding UsedPercent}" Height="9" Foreground="{StaticResource Accent}" Background="#E6EEF1" BorderThickness="0" VerticalAlignment="Center"/><StackPanel Grid.Column="2" Margin="18,0,0,0"><TextBlock><Run Text="可用 "/><Run Text="{Binding Available}"/><Run Text=" / "/><Run Text="{Binding Total}"/></TextBlock><TextBlock Text="{Binding Error}" Foreground="#A23E32"/></StackPanel></Grid></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
           </StackPanel></Border>
           <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
             <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="物理内存" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="{Binding MemorySummary}" Margin="0,10,0,12"/><ProgressBar Value="{Binding MemoryPercent}" Height="7" Foreground="#5687AF" Background="#E6EEF1" BorderThickness="0"/><TextBlock Text="仅监控，不强制释放内存。" Foreground="#657689" Margin="0,10,0,0"/></StackPanel></Border>
-            <Border Grid.Column="2" Style="{StaticResource Card}"><StackPanel><TextBlock Text="Windows 回收站" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="{Binding BinSummary}" Margin="0,10,0,12"/><WrapPanel><Button Content="打开回收站" Command="{Binding OpenBinCommand}" Padding="12,7"/><Button Content="清空…" Command="{Binding EmptyBinCommand}" Background="#657689" Padding="12,7"/></WrapPanel><TextBlock Text="单独操作，不参与一键清理。" Foreground="#657689" Margin="0,10,0,0"/></StackPanel></Border>
+            <Border Grid.Column="2" Style="{StaticResource Card}"><StackPanel><TextBlock Text="Windows 回收站" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="{Binding BinSummary}" Margin="0,10,0,12"/><WrapPanel><Button Content="打开回收站" Command="{Binding OpenBinCommand}" Style="{StaticResource SecondaryButton}" Padding="12,7"/><Button Content="清空…" Command="{Binding EmptyBinCommand}" Background="#657689" Padding="12,7"/></WrapPanel><TextBlock Text="单独操作，不参与一键清理。" Foreground="#657689" Margin="0,10,0,0"/></StackPanel></Border>
           </Grid>
         </StackPanel></ScrollViewer></TabItem>
         <TabItem><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
@@ -116,3 +116,4 @@
     </Grid>
   </Grid>
 </Window>
+
