@@ -36,6 +36,11 @@ public sealed partial class MainViewModel : ObservableObject
     private bool _sampling;
     private CleanupPlan? _plan;
     private int _returnPage;
+    private bool _changingSelection;
+
+    [ObservableProperty] private string _candidateSearch = "";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(NoMatchingCandidates)), NotifyPropertyChangedFor(nameof(HasFilteredCandidates)), NotifyPropertyChangedFor(nameof(FilterSummary))]
+    private IReadOnlyList<CandidateRow> _filteredCandidates = Array.Empty<CandidateRow>();
 
     [ObservableProperty] private bool _busy;
     [ObservableProperty] private int _selectedPage;
@@ -100,6 +105,30 @@ public sealed partial class MainViewModel : ObservableObject
     }
     public bool HasCandidates => Candidates.Count > 0;
     public bool NoCandidates => !HasCandidates;
+    public bool NoMatchingCandidates => HasCandidates && FilteredCandidates.Count == 0;
+    public bool HasFilteredCandidates => FilteredCandidates.Count > 0;
+    public string FilterSummary => $"显示 {FilteredCandidates.Count:N0} / {Candidates.Count:N0} 项";
+    partial void OnCandidateSearchChanged(string value) => FilterCandidates();
+    partial void OnCandidatesChanged(IReadOnlyList<CandidateRow> oldValue, IReadOnlyList<CandidateRow> newValue)
+    {
+        foreach (var row in oldValue) row.PropertyChanged -= CandidateSelectionChanged;
+        foreach (var row in newValue) row.PropertyChanged += CandidateSelectionChanged;
+        CandidateSearch = "";
+        FilterCandidates();
+    }
+    private void CandidateSelectionChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (!_changingSelection) InvalidatePlan();
+    }
+    private void FilterCandidates()
+    {
+        var query = CandidateSearch.Trim();
+        FilteredCandidates = query.Length == 0 ? Candidates : Candidates.Where(x => x.Path.Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
+        OnPropertyChanged(nameof(NoMatchingCandidates));
+        OnPropertyChanged(nameof(FilterSummary));
+        OnPropertyChanged(nameof(SelectionSummary));
+        SelectFilteredCommand.NotifyCanExecuteChanged();
+    }
     public bool HasScanIssues => ScanIssues.Count > 0;
     public bool HasPlanItems => PlanItems.Count > 0;
     public bool HasResults => Results.Count > 0;
@@ -110,7 +139,17 @@ public sealed partial class MainViewModel : ObservableObject
     private int QuickAgeDays => int.TryParse(AgeDaysText, out var days) ? Math.Max(7, days) : 7;
     public string TemporaryDirectory => _locations.TemporaryDirectory;
     public string StateDirectory => _locations.StateDirectory;
-    public string SelectionSummary => $"已选 {Candidates.Count(x => x.Selected):N0} / {Candidates.Count:N0} 项 · 逻辑大小 {FormatSize.Bytes(Candidates.Where(x => x.Selected).Sum(x => x.Bytes))}";
+    public string SelectionSummary
+    {
+        get
+        {
+            var selected = Candidates.Where(x => x.Selected).ToArray();
+            var hidden = selected.Length - FilteredCandidates.Count(x => x.Selected);
+            return $"已选 {selected.Length:N0} / {Candidates.Count:N0} 项 · 逻辑大小 {FormatSize.Bytes(selected.Sum(x => x.Bytes))}" +
+                (hidden > 0 ? $" · 含 {hidden:N0} 项被筛选隐藏（仍在清理范围内）" : "");
+        }
+    }
+    private bool CanSelectFiltered() => !Busy && FilteredCandidates.Count > 0;
     private bool CanWork() => !Busy;
     private bool CanExecutePlan() => !Busy && _plan is not null;
     partial void OnBusyChanged(bool value)
@@ -123,6 +162,7 @@ public sealed partial class MainViewModel : ObservableObject
         ClearSelectionCommand.NotifyCanExecuteChanged(); AddExclusionCommand.NotifyCanExecuteChanged();
         RefreshOverviewCommand.NotifyCanExecuteChanged();
         QuickCleanCommand.NotifyCanExecuteChanged();
+        SelectFilteredCommand.NotifyCanExecuteChanged();
     }
     partial void OnPermanentChanged(bool value) => InvalidatePlan();
     partial void OnExclusionsTextChanged(string value) => InvalidatePlan();
@@ -236,7 +276,6 @@ public sealed partial class MainViewModel : ObservableObject
         var progress = new Progress<WorkProgress>(p => Status = $"{p.Phase} · 已访问 {p.Processed:N0} 项 · 候选 {p.Candidates:N0} 项 · 跳过 {p.Skipped:N0} 项");
         var result = await _scanner.ScanAsync(rule, settings.ExcludedDirectories, progress, _operation!.Token);
         Candidates = result.Candidates.Select(x => new CandidateRow(x)).ToArray();
-        foreach (var row in Candidates) row.PropertyChanged += (_, _) => InvalidatePlan();
         ScanIssues = result.Issues;
         ScanSummary = $"{(large ? "大文件分析" : "临时文件扫描")} · {result.Candidates.Length:N0} 个候选 · 跳过 {result.Skipped:N0} · 错误 {result.ErrorCount:N0}" +
             $" · {(result.Ended - result.Started).TotalSeconds:N1} 秒" + (result.Cancelled ? " · 已取消，结果不完整" : "") +
@@ -251,7 +290,15 @@ public sealed partial class MainViewModel : ObservableObject
     private void AddExclusion()
     { var folder = _dialogs.PickFolder(); if (folder is not null) ExclusionsText = string.IsNullOrWhiteSpace(ExclusionsText) ? folder : ExclusionsText + Environment.NewLine + folder; }
     [RelayCommand(CanExecute = nameof(CanWork))]
-    private void ClearSelection() { foreach (var row in Candidates.Where(x => x.Selected)) row.Selected = false; }
+    private void ClearSelection() => ChangeSelection(Candidates, false);
+    [RelayCommand(CanExecute = nameof(CanSelectFiltered))]
+    private void SelectFiltered() => ChangeSelection(FilteredCandidates, true);
+    private void ChangeSelection(IReadOnlyList<CandidateRow> rows, bool selected)
+    {
+        _changingSelection = true;
+        try { foreach (var row in rows) row.Selected = selected; }
+        finally { _changingSelection = false; InvalidatePlan(); }
+    }
     [RelayCommand(CanExecute = nameof(CanWork))]
     private void BuildPlan()
     {
@@ -294,6 +341,7 @@ public sealed partial class MainViewModel : ObservableObject
     }
     private void ApplyReport(CleanupReport report)
     {
+        ApplyDisks(report.DisksAfter);
         Results = report.Items.Select(x => new ResultRow(x.Candidate.Path, x.Status switch
         { ItemStatus.Succeeded => "成功", ItemStatus.Skipped => "跳过", ItemStatus.Failed => "失败", _ => "未执行" },
             x.Mode == CleanupMode.Recycle ? "回收站" : "永久删除", FormatSize.Bytes(x.Candidate.Bytes), x.Message)).ToArray();
@@ -305,12 +353,14 @@ public sealed partial class MainViewModel : ObservableObject
             return before is null ? $"{after.Name} 无可比数据" : $"{after.Name} {FormatSize.Bytes(after.AvailableBytes - before.AvailableBytes)}";
         }));
     }
+    private void ApplyDisks(IEnumerable<DiskSnapshot> disks) =>
+        DiskRows = disks.Select(x => new DiskRow(x.Name, FormatSize.Bytes(x.TotalBytes), FormatSize.Bytes(x.AvailableBytes),
+            x.TotalBytes == 0 ? 0 : 100d * (x.TotalBytes - x.AvailableBytes) / x.TotalBytes, x.Error)).ToArray();
     [RelayCommand(CanExecute = nameof(CanWork))]
     private Task RefreshOverview() => Run(async () =>
     {
         var disks = await Task.Run(_disks.GetDisks);
-        DiskRows = disks.Select(x => new DiskRow(x.Name, FormatSize.Bytes(x.TotalBytes), FormatSize.Bytes(x.AvailableBytes),
-            x.TotalBytes == 0 ? 0 : 100d * (x.TotalBytes - x.AvailableBytes) / x.TotalBytes, x.Error)).ToArray();
+        ApplyDisks(disks);
         var bin = await Task.Run(_bin.Query);
         BinSummary = bin.Error ?? $"{bin.Items:N0} 个项目 · 逻辑大小 {FormatSize.Bytes(bin.Bytes)}";
         await SampleMemoryAsync(false);

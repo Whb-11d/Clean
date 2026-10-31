@@ -3,16 +3,24 @@
   <Window.Resources>
     <DataTemplate x:Key="ScanResults">
       <Grid>
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <TextBlock Text="{Binding ScanSummary}" Margin="0,10,0,10"/>
-        <DockPanel Grid.Row="1" Margin="0,0,0,12">
-          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="本次结果" Command="{Binding ShowReportCommand}" Visibility="{Binding HasResults, Converter={StaticResource VisibleWhenTrue}}" Style="{StaticResource SecondaryButton}"/><Button Content="取消勾选" Command="{Binding ClearSelectionCommand}" Style="{StaticResource SecondaryButton}"/><Button Content="生成清理预览 →" Command="{Binding BuildPlanCommand}"/></StackPanel>
-          <TextBlock Text="{Binding SelectionSummary}" VerticalAlignment="Center"/>
+        <StackPanel Grid.Row="1" Margin="0,0,0,8">
+          <WrapPanel><Button Content="本次结果" Command="{Binding ShowReportCommand}" Visibility="{Binding HasResults, Converter={StaticResource VisibleWhenTrue}}" Style="{StaticResource SecondaryButton}"/><Button Content="勾选筛选结果" Command="{Binding SelectFilteredCommand}" Style="{StaticResource SecondaryButton}"/><Button Content="取消全部勾选" Command="{Binding ClearSelectionCommand}" Style="{StaticResource SecondaryButton}"/><Button Content="生成清理预览 →" Command="{Binding BuildPlanCommand}"/></WrapPanel>
+          <TextBlock Text="{Binding SelectionSummary}" Margin="0,6,0,0" AutomationProperties.LiveSetting="Polite"/>
+        </StackPanel>
+        <DockPanel Grid.Row="2" Margin="0,0,0,8">
+          <TextBlock DockPanel.Dock="Right" Text="{Binding FilterSummary}" Margin="12,0,0,0" VerticalAlignment="Center"/>
+          <TextBlock Text="搜索路径" Margin="0,0,10,0" VerticalAlignment="Center"/>
+          <TextBox Text="{Binding CandidateSearch, UpdateSourceTrigger=PropertyChanged, Delay=200}" IsEnabled="{Binding Idle}" AutomationProperties.Name="搜索候选文件路径" ToolTip="按路径关键词筛选；清空搜索可查看全部文件。筛选不改变已勾选项。"/>
         </DockPanel>
-        <Border Grid.Row="2" Style="{StaticResource Card}" VerticalAlignment="Top" Visibility="{Binding NoCandidates, Converter={StaticResource VisibleWhenTrue}}">
+        <Border Grid.Row="3" Style="{StaticResource Card}" VerticalAlignment="Top" Visibility="{Binding NoMatchingCandidates, Converter={StaticResource VisibleWhenTrue}}">
+          <StackPanel><TextBlock Text="没有匹配的文件" FontWeight="SemiBold"/><TextBlock Text="请修改或清空搜索关键词。已勾选文件仍保留在清理范围内。" Margin="0,6,0,0"/></StackPanel>
+        </Border>
+        <Border Grid.Row="3" Style="{StaticResource Card}" VerticalAlignment="Top" Visibility="{Binding NoCandidates, Converter={StaticResource VisibleWhenTrue}}">
           <StackPanel><TextBlock Text="还没有文件列表" FontWeight="SemiBold"/><TextBlock Text="选择范围后开始扫描；日常临时文件清理可以直接使用首页的一键清理。" Foreground="#657689" Margin="0,6,0,0"/></StackPanel>
         </Border>
-        <DataGrid Grid.Row="2" ItemsSource="{Binding Candidates}" IsEnabled="{Binding Idle}" SelectionMode="Extended" AutomationProperties.Name="扫描候选文件" Visibility="{Binding HasCandidates, Converter={StaticResource VisibleWhenTrue}}">
+        <DataGrid Grid.Row="3" ItemsSource="{Binding FilteredCandidates}" IsEnabled="{Binding Idle}" SelectionMode="Extended" AutomationProperties.Name="扫描候选文件" Visibility="{Binding HasFilteredCandidates, Converter={StaticResource VisibleWhenTrue}}">
           <DataGrid.Columns>
             <DataGridTemplateColumn Header="选择" Width="55"><DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding Selected, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" AutomationProperties.Name="选择此文件"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
             <DataGridTextColumn Header="文件路径" Binding="{Binding Path}" Width="*" IsReadOnly="True"><DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="ToolTip" Value="{Binding Path}"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="TextWrapping" Value="NoWrap"/><Setter Property="VerticalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle></DataGridTextColumn>
@@ -21,7 +29,7 @@
             <DataGridTextColumn Header="规则 / 风险" Binding="{Binding Reason}" Width="200" IsReadOnly="True"/>
           </DataGrid.Columns>
         </DataGrid>
-        <Expander Grid.Row="3" Header="扫描错误详情（最多保留 1000 条）" Margin="0,10,0,0" Visibility="{Binding HasScanIssues, Converter={StaticResource VisibleWhenTrue}}">
+        <Expander Grid.Row="4" Header="扫描错误详情（最多保留 1000 条）" Margin="0,10,0,0" Visibility="{Binding HasScanIssues, Converter={StaticResource VisibleWhenTrue}}">
           <DataGrid ItemsSource="{Binding ScanIssues}" Height="120" IsReadOnly="True"><DataGrid.Columns><DataGridTextColumn Header="路径" Binding="{Binding Path}" Width="*"/><DataGridTextColumn Header="原因" Binding="{Binding Message}" Width="300"/></DataGrid.Columns></DataGrid>
         </Expander>
       </Grid>

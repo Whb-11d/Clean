@@ -6,6 +6,64 @@ namespace Clean.App.Tests;
 
 public sealed class ViewModelTests
 {
+    [Fact] public async Task FilteredSelectionKeepsHiddenChoicesExplicitAndExecutesOnlyApprovedFiles()
+    {
+        var (vm, files, dialogs, _, _) = Create();
+        await vm.ScanTemporaryCommand.ExecuteAsync(null);
+        vm.CandidateSearch = @"  C:\TEST\a  ";
+        Assert.Single(vm.FilteredCandidates); Assert.All(vm.Candidates, x => Assert.False(x.Selected));
+        vm.SelectFilteredCommand.Execute(null);
+        Assert.Single(vm.Candidates.Where(x => x.Selected));
+        vm.BuildPlanCommand.Execute(null); Assert.Single(vm.PlanItems);
+        vm.CandidateSearch = "does-not-exist";
+        Assert.True(vm.NoMatchingCandidates); Assert.False(vm.HasFilteredCandidates);
+        Assert.False(vm.SelectFilteredCommand.CanExecute(null));
+        Assert.Contains("含 1 项被筛选隐藏", vm.SelectionSummary);
+        Assert.True(vm.ExecutePlanCommand.CanExecute(null));
+        dialogs.Confirm = true;
+        await vm.ExecutePlanCommand.ExecuteAsync(null);
+        Assert.Equal(@"C:\Test\a", Assert.Single(files.Executed));
+        Assert.NotEmpty(vm.DiskRows);
+    }
+    [Fact] public async Task BulkSelectionInvalidatesPlanAndClearIncludesHiddenRows()
+    {
+        var (vm, _, _, _, _) = Create(); await vm.ScanTemporaryCommand.ExecuteAsync(null);
+        vm.Candidates[0].Selected = true; vm.BuildPlanCommand.Execute(null);
+        vm.SelectFilteredCommand.Execute(null);
+        Assert.All(vm.Candidates, x => Assert.True(x.Selected));
+        Assert.False(vm.ExecutePlanCommand.CanExecute(null));
+        vm.CandidateSearch = "no-match"; vm.ClearSelectionCommand.Execute(null);
+        Assert.All(vm.Candidates, x => Assert.False(x.Selected));
+        await vm.ScanTemporaryCommand.ExecuteAsync(null);
+        Assert.Equal("", vm.CandidateSearch); Assert.Equal(vm.Candidates.Count, vm.FilteredCandidates.Count);
+        Assert.All(vm.Candidates, x => Assert.False(x.Selected));
+    }
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CleanupRefreshesOverviewFromAfterSnapshot(bool quick)
+    {
+        var files = new FakeFiles(); files.Add(@"C:\Test\a");
+        var metrics = new FakeMetrics(); var disks = new ChangingDisks(); var history = new FakeHistory();
+        var vm = new MainViewModel(new(files, new()), new(files, new(), disks, history), disks, metrics,
+            new FakeBin(), new FakeSettings(), history, new FakeLog(), new Dialogs { Confirm = true }, new(@"C:\Test", @"C:\State"));
+        await vm.RefreshOverviewCommand.ExecuteAsync(null);
+        Assert.Equal(90d, Assert.Single(vm.DiskRows).UsedPercent);
+        files.OnExecute = () => disks.Available = 8000;
+        if (quick) await vm.QuickCleanCommand.ExecuteAsync(null);
+        else
+        {
+            await vm.ScanTemporaryCommand.ExecuteAsync(null); vm.SelectFilteredCommand.Execute(null);
+            vm.BuildPlanCommand.Execute(null); await vm.ExecutePlanCommand.ExecuteAsync(null);
+        }
+        Assert.Equal(20d, Assert.Single(vm.DiskRows).UsedPercent);
+        Assert.Equal(FormatSize.Bytes(8000), vm.DiskRows[0].Available);
+    }
+    private sealed class ChangingDisks : IDiskInfoProvider
+    {
+        public long Available = 1000;
+        public System.Collections.Immutable.ImmutableArray<DiskSnapshot> GetDisks() => [new("C:\\", 10000, Available, null)];
+    }
     [Fact] public async Task LargeFileThresholdUsesDecimalMegabytesAtTheExactBoundary()
     {
         var (vm, files, _, settings, _) = Create();

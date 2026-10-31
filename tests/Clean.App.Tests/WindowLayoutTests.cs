@@ -53,6 +53,17 @@ public sealed class WindowLayoutTests
                         Assert.Equal(page, navigation.SelectedItem is NavigationItem item ? item.Page : -1);
                     }
 
+                    vm.SelectedPage = 1;
+                    await vm.ScanTemporaryCommand.ExecuteAsync(null);
+                    Render(root, "search-results-small", 940, 660);
+                    var search = Descendants<TextBox>(root).Single(x => x.IsVisible && AutomationProperties.GetName(x) == "搜索候选文件路径");
+                    Assert.True(search.ActualWidth > 150);
+                    Assert.Contains(VisibleButtons(root), x => Equals(x.Content, "勾选筛选结果"));
+                    Assert.Contains(Descendants<DataGrid>(root), x => x.IsVisible && x.ItemsSource == vm.FilteredCandidates && x.ActualHeight > 50);
+                    vm.CandidateSearch = "no-match";
+                    Render(root, "search-empty-small", 940, 660);
+                    Assert.Contains(Descendants<TextBlock>(root), x => x.IsVisible && x.Text == "没有匹配的文件");
+                    Assert.DoesNotContain(Descendants<DataGrid>(root), x => x.IsVisible && AutomationProperties.GetName(x) == "扫描候选文件");
                     await vm.QuickCleanCommand.ExecuteAsync(null);
                     Render(root, "cleanup-finished", 1120, 780);
                     Assert.Contains(VisibleButtons(root), x => Equals(x.Content, "清理详情 →"));
