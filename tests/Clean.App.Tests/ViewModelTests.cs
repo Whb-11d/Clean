@@ -13,7 +13,7 @@ public sealed class ViewModelTests
         vm.CandidateSearch = @"  C:\TEST\a  ";
         Assert.Single(vm.FilteredCandidates); Assert.All(vm.Candidates, x => Assert.False(x.Selected));
         vm.SelectFilteredCommand.Execute(null);
-        Assert.Single(vm.Candidates.Where(x => x.Selected));
+        Assert.Single(vm.Candidates, x => x.Selected);
         vm.BuildPlanCommand.Execute(null); Assert.Single(vm.PlanItems);
         vm.CandidateSearch = "does-not-exist";
         Assert.True(vm.NoMatchingCandidates); Assert.False(vm.HasFilteredCandidates);
