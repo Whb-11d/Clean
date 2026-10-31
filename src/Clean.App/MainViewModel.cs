@@ -109,9 +109,10 @@ public sealed partial class MainViewModel : ObservableObject
     public bool HasFilteredCandidates => FilteredCandidates.Count > 0;
     public string FilterSummary => $"显示 {FilteredCandidates.Count:N0} / {Candidates.Count:N0} 项";
     partial void OnCandidateSearchChanged(string value) => FilterCandidates();
-    partial void OnCandidatesChanged(IReadOnlyList<CandidateRow> oldValue, IReadOnlyList<CandidateRow> newValue)
+    partial void OnCandidatesChanged(IReadOnlyList<CandidateRow>? oldValue, IReadOnlyList<CandidateRow> newValue)
     {
-        foreach (var row in oldValue) row.PropertyChanged -= CandidateSelectionChanged;
+        if (oldValue is not null)
+            foreach (var row in oldValue) row.PropertyChanged -= CandidateSelectionChanged;
         foreach (var row in newValue) row.PropertyChanged += CandidateSelectionChanged;
         CandidateSearch = "";
         FilterCandidates();
